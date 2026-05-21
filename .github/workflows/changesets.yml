@@ -64,6 +64,37 @@ jobs:
       - run: pnpm run generate
       - run: pnpm run check-drift
 
+      # --- DIAGNOSTIC (temporary): identify the token user + org membership ---
+      # The publish step has been failing with E404 on @runfile-ai/schemas; we
+      # need to know which npm user the token actually authenticates as and
+      # whether that user can write to the @runfile-ai scope. None of these
+      # commands should fail the job — they're diagnostic only.
+      - name: npm token diagnostics
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set +e
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          echo '=== whoami (which user does this token authenticate as?) ==='
+          npm whoami --registry https://registry.npmjs.org
+          echo
+          echo '=== org members of runfile-ai (does this user have access?) ==='
+          npm org ls runfile-ai 2>&1
+          echo
+          echo '=== role of this user inside runfile-ai ==='
+          ME=$(npm whoami --registry https://registry.npmjs.org 2>/dev/null)
+          if [ -n "$ME" ]; then
+            npm org ls runfile-ai "$ME" 2>&1
+          fi
+          echo
+          echo '=== packages writable by this token ==='
+          npm access list packages 2>&1 | head -30
+          echo
+          echo '=== dry-run publish (does npm even consider us authorised?) ==='
+          npm publish --dry-run --access public 2>&1 | tail -20
+          rm -f ~/.npmrc
+          exit 0
+
       - name: Create Version PR or publish
         uses: changesets/action@v1
         with:
