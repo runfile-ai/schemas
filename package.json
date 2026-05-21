@@ -1,6 +1,6 @@
 {
   "name": "@runfile-ai/schemas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runfile event, ingest, vault, evidence, and manifest schemas. Source of truth in Zod; generates JSON Schema, Pydantic, and Go.",
   "license": "Apache-2.0",
   "type": "module",
