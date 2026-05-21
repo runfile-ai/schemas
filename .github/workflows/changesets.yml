@@ -74,6 +74,20 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set +e
+          # Is the secret even reaching the workflow? Org-level secrets that
+          # haven't been made available to this repo expand to "" silently.
+          echo "=== secret arrival check ==="
+          echo "NPM_TOKEN length: ${#NPM_TOKEN}"
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "FATAL: NPM_TOKEN is empty — the org secret is not exposed to this repo."
+            echo "Fix: github.com/organizations/runfile-ai/settings/secrets/actions/NPM_TOKEN"
+            echo "     -> Repository access -> add 'schemas' (or set 'All repositories')."
+            exit 0
+          fi
+          # Token reached us. Show first 4 chars only — enough to verify it
+          # starts with the expected npm_ prefix without leaking the body.
+          echo "NPM_TOKEN prefix: ${NPM_TOKEN:0:4}"
+          echo
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           echo '=== whoami (which user does this token authenticate as?) ==='
           npm whoami --registry https://registry.npmjs.org
