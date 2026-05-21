@@ -130,8 +130,8 @@ You don't tag manually. The flow is:
 3. Review that PR. When merged:
    - The same workflow runs again, calls `changeset publish`, which:
      - Publishes `@runfile-ai/schemas@X.Y.Z` to npm
-     - Pushes the `vX.Y.Z` git tag
-   - The tag push triggers `release.yml`, which announces the Go module path (and will publish to PyPI once the runfile-ai PyPI org is set up).
+     - Pushes the `vX.Y.Z` git tag (Go consumers fetch via this tag — no separate publish step)
+   - The same workflow then builds the Python wheel + sdist and publishes `runfile-ai-schemas==X.Y.Z` to PyPI via [trusted publishing](https://docs.pypi.org/trusted-publishers/) (OIDC, no API token).
 
 You can preview what the next release will look like locally:
 
@@ -143,8 +143,8 @@ pnpm changeset status --verbose
 
 | Registry | What to set up |
 |---|---|
-| **npm** | `NPM_TOKEN` repo secret (an automation token from npmjs.org with `Publish` rights on `@runfile-ai/schemas`) |
-| **PyPI** | *Deferred to GA.* A trusted publisher on [pypi.org/manage/account/publishing/](https://pypi.org/manage/account/publishing/) pointing at this repo's `release.yml` workflow and `release` GitHub environment. Until then the PyPI step in `release.yml` is commented out. |
+| **npm** | `NPM_TOKEN` repo secret (granular access token with `@runfile-ai` scope → read+write, or an automation token from npmjs.org with `Publish` rights on `@runfile-ai/schemas`). |
+| **PyPI** | A trusted publisher on [pypi.org/manage/account/publishing/](https://pypi.org/manage/account/publishing/) pointing at the `changesets.yml` workflow and the `release` GitHub environment. No secret required. |
 | **Go** | Nothing. The repo must be public (or the consumer's `GOPRIVATE` must include it) and tags must be pushed — Changesets pushes them for you. |
 
 ### Manual fallback: `pnpm run publish-all`

@@ -4,8 +4,8 @@ name: Changesets
 # the action opens (or updates) a "Version Packages" PR that bumps versions and
 # writes CHANGELOG.md. When that PR is merged, the action runs again and (since
 # no changesets remain) calls `changeset publish` — which publishes to npm and
-# pushes a `vX.Y.Z` git tag. That tag in turn triggers .github/workflows/release.yml
-# for Go module announcement (and PyPI when re-enabled at GA).
+# pushes a `vX.Y.Z` git tag. On publish, we ALSO build the Python wheel and
+# push to PyPI via trusted publishing (OIDC, no token).
 
 on:
   push:
@@ -28,6 +28,12 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # PyPI trusted publishing matches against the workflow + environment, so
+    # this `environment:` block has to match the "pending publisher" config at
+    # pypi.org/manage/account/publishing/.
+    environment:
+      name: release
+      url: https://pypi.org/project/runfile-ai-schemas/
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +78,7 @@ jobs:
       - run: pnpm run check-drift
 
       - name: Create Version PR or publish
+        id: changesets
         uses: changesets/action@v1
         with:
           # When there are no pending changesets (i.e. the version PR just
@@ -84,3 +91,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ----- PyPI publish ------------------------------------------------
+      # Only runs when changesets/action above actually published (i.e. the
+      # Version Packages PR just merged). Skipped on regular pushes that just
+      # open/update the Version PR.
+      - name: Install Python build tooling
+        if: steps.changesets.outputs.published == 'true'
+        run: pip install build
+
+      - name: Build PyPI wheel + sdist
+        if: steps.changesets.outputs.published == 'true'
+        run: python -m build generated/python
+
+      - name: Publish to PyPI
+        if: steps.changesets.outputs.published == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: generated/python/dist
+          # Trusted publishing — PyPI verifies the GitHub OIDC token against
+          # the publisher configured at pypi.org/manage/account/publishing/.
+          # No `password:` field on purpose.
