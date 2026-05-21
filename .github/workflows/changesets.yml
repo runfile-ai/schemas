@@ -39,11 +39,18 @@ jobs:
         with:
           version: 9
 
+      # NOTE: deliberately do NOT pass `registry-url:` here. Setting it makes
+      # setup-node write its own .npmrc to a temp path and pin
+      # NPM_CONFIG_USERCONFIG at it, where it expects `${NODE_AUTH_TOKEN}` to
+      # provide the credential. The changesets/action below writes its own
+      # ~/.npmrc using `NPM_TOKEN`, but npm ignores ~/.npmrc when
+      # NPM_CONFIG_USERCONFIG is set — so the publish authenticates as nobody
+      # and gets 401/404 from npm. Letting changesets/action own .npmrc fixes
+      # the conflict.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
 
       - uses: actions/setup-python@v5
         with:
@@ -63,51 +70,6 @@ jobs:
       - run: pnpm test
       - run: pnpm run generate
       - run: pnpm run check-drift
-
-      # --- DIAGNOSTIC (temporary): identify the token user + org membership ---
-      # The publish step has been failing with E404 on @runfile-ai/schemas; we
-      # need to know which npm user the token actually authenticates as and
-      # whether that user can write to the @runfile-ai scope. None of these
-      # commands should fail the job — they're diagnostic only.
-      - name: npm token diagnostics
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set +e
-          # Is the secret even reaching the workflow? Org-level secrets that
-          # haven't been made available to this repo expand to "" silently.
-          echo "=== secret arrival check ==="
-          echo "NPM_TOKEN length: ${#NPM_TOKEN}"
-          if [ -z "${NPM_TOKEN}" ]; then
-            echo "FATAL: NPM_TOKEN is empty — the org secret is not exposed to this repo."
-            echo "Fix: github.com/organizations/runfile-ai/settings/secrets/actions/NPM_TOKEN"
-            echo "     -> Repository access -> add 'schemas' (or set 'All repositories')."
-            exit 0
-          fi
-          # Token reached us. Show first 4 chars only — enough to verify it
-          # starts with the expected npm_ prefix without leaking the body.
-          echo "NPM_TOKEN prefix: ${NPM_TOKEN:0:4}"
-          echo
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          echo '=== whoami (which user does this token authenticate as?) ==='
-          npm whoami --registry https://registry.npmjs.org
-          echo
-          echo '=== org members of runfile-ai (does this user have access?) ==='
-          npm org ls runfile-ai 2>&1
-          echo
-          echo '=== role of this user inside runfile-ai ==='
-          ME=$(npm whoami --registry https://registry.npmjs.org 2>/dev/null)
-          if [ -n "$ME" ]; then
-            npm org ls runfile-ai "$ME" 2>&1
-          fi
-          echo
-          echo '=== packages writable by this token ==='
-          npm access list packages 2>&1 | head -30
-          echo
-          echo '=== dry-run publish (does npm even consider us authorised?) ==='
-          npm publish --dry-run --access public 2>&1 | tail -20
-          rm -f ~/.npmrc
-          exit 0
 
       - name: Create Version PR or publish
         uses: changesets/action@v1
