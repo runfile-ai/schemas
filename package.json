@@ -33,7 +33,7 @@
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist generated/json-schema/*.json",
     "changeset": "changeset",
-    "changeset:version": "changeset version",
+    "changeset:version": "changeset version && pnpm run generate",
     "changeset:publish": "pnpm run build && changeset publish"
   },
   "dependencies": {
