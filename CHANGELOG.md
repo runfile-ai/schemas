@@ -1,5 +1,14 @@
 # @runfile-ai/schemas
 
+## 0.1.2
+
+### Patch Changes
+
+- [`4ad5c7d`](https://github.com/runfile-ai/schemas/commit/4ad5c7df1c08f995cbd099139cf2bbfae70303d4) Thanks [@ada-raj](https://github.com/ada-raj)! - Enable PyPI publishing through the same Changesets workflow that handles
+  npm + Go tagging. Uses PyPI trusted publishing (OIDC) so no API token is
+  stored in GitHub secrets. The previous standalone `release.yml` is removed
+  since its only remaining responsibility was PyPI.
+
 ## 0.1.1
 
 ### Patch Changes
