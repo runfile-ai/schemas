@@ -37,7 +37,8 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python codegen
-        run: pip install 'datamodel-code-generator[http]' build
+        # Pin floor on datamodel-code-generator: keep release in step with ci.yml.
+        run: pip install 'datamodel-code-generator[http]>=0.40,<1.0' build
 
       - name: Install Node deps
         run: pnpm install --frozen-lockfile

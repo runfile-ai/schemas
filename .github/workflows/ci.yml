@@ -29,7 +29,10 @@ jobs:
           go-version: '1.22'
 
       - run: pnpm install --frozen-lockfile
-      - run: pip install 'datamodel-code-generator>=0.25' pydantic
+      # Pin floor on datamodel-code-generator: 0.40 is the first line we know
+      # accepts `--target-python-version 3.10` (older floors silently dropped
+      # 3.9, breaking CI without changing generate.ts).
+      - run: pip install 'datamodel-code-generator>=0.40,<1.0' 'pydantic>=2.5'
 
       - run: pnpm run lint
       - run: pnpm test

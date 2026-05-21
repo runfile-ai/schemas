@@ -323,7 +323,7 @@ function step2WritePython(bundle: DomainBundle, schemaPath: string, dmcg: string
       '--use-union-operator',
       '--field-constraints',
       '--target-python-version',
-      '3.9',
+      '3.10',
       '--disable-timestamp',
       '--use-schema-description',
       '--class-name',
@@ -551,7 +551,7 @@ name = "runfile-ai-schemas"
 version = "${pkg.version}"
 description = "Runfile event schemas for the Runfile audit platform. Generated from @runfile-ai/schemas Zod source."
 license = { text = "Apache-2.0" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["pydantic>=2.5"]
 
 [tool.setuptools.packages.find]
