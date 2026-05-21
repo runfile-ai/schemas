@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
+  "title": "manifest",
+  "description": "Runfile manifest schemas. Source: src/manifest.ts (Zod). Do not edit by hand.",
+  "$ref": "#/definitions/_RunfileBundle",
+  "definitions": {
+    "MerkleManifest": {
+      "type": "object",
+      "properties": {
+        "manifest_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "schema_version": {
+          "$ref": "#/definitions/MerkleManifest/properties/manifest_version"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^tnt_[0-9a-z]{12}$"
+        },
+        "day_utc": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "built_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "leaf_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "merkle_root": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "prev_manifest_root": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MerkleManifest/properties/merkle_root"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "leaves": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "event_hash": {
+                "$ref": "#/definitions/MerkleManifest/properties/merkle_root"
+              },
+              "leaf_index": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "event_id",
+              "event_hash",
+              "leaf_index"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "kms_signature": {
+          "type": "object",
+          "properties": {
+            "kms_key_arn": {
+              "type": "string"
+            },
+            "signing_algorithm": {
+              "type": "string"
+            },
+            "signature_base64": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kms_key_arn",
+            "signing_algorithm",
+            "signature_base64"
+          ],
+          "additionalProperties": false
+        },
+        "attestation_document": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rekor_entry": {
+          "type": "object",
+          "properties": {
+            "log_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "log_id": {
+              "type": "string"
+            },
+            "inclusion_proof": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "log_index",
+            "log_id",
+            "inclusion_proof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "manifest_version",
+        "schema_version",
+        "tenant_id",
+        "day_utc",
+        "built_at",
+        "leaf_count",
+        "merkle_root",
+        "prev_manifest_root",
+        "leaves",
+        "kms_signature",
+        "attestation_document"
+      ],
+      "additionalProperties": false
+    },
+    "_RunfileBundle": {
+      "type": "object",
+      "properties": {
+        "MerkleManifest": {
+          "$ref": "#/definitions/MerkleManifest"
+        }
+      },
+      "required": [
+        "MerkleManifest"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

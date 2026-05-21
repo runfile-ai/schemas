@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  # `id-token: write` is required for PyPI trusted publishing (OIDC).
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # The PyPI trusted publisher you configured on pypi.org should target this
+    # environment name. (You can rename it; just match it on PyPI.)
+    environment:
+      name: release
+      url: https://pypi.org/project/runfile-ai-schemas/
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python codegen
+        run: pip install 'datamodel-code-generator[http]' build
+
+      - name: Install Node deps
+        run: pnpm install --frozen-lockfile
+
+      # ----- regenerate + verify -----------------------------------------
+      - run: pnpm run generate
+      - run: pnpm run check-drift
+      - run: pnpm test
+      - run: pnpm run build
+
+      # ----- npm publish -------------------------------------------------
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ----- PyPI publish (DISABLED until GA) ----------------------------
+      # The runfile-ai PyPI organisation isn't ready yet, so we skip the
+      # Python wheel publish. Re-enable when the org + trusted publisher are
+      # configured at pypi.org/manage/account/publishing/.
+      # - name: Build PyPI wheel + sdist
+      #   run: python -m build generated/python
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     packages-dir: generated/python/dist
+      #     # Trusted publishing — PyPI verifies the GitHub OIDC token against the
+      #     # publisher configured at pypi.org/manage/account/publishing/.
+      #     # No `password:` field on purpose.
+
+      # ----- Go: nothing to do -------------------------------------------
+      # Go consumers fetch by Git tag. The push that triggered this workflow
+      # already created the tag, so `go get github.com/runfile-ai/schemas@vX.Y.Z`
+      # works as soon as this job completes.
+      - name: Announce Go module
+        run: |
+          echo "Go consumers can now run:"
+          echo "  go get github.com/runfile-ai/schemas@${GITHUB_REF_NAME}"

@@ -1,0 +1,47 @@
+{
+  "_comment": "Shared canonical-JSON test vectors. Used by TS today; Python and Go must reproduce the same `canonical` bytes once their codegen is wired (GA). The `sha256` field is populated when all three implementations agree.",
+  "vectors": [
+    {
+      "name": "sorted keys",
+      "input": {
+        "b": 1,
+        "a": 2
+      },
+      "canonical": "{\"a\":2,\"b\":1}",
+      "sha256": "sha256:d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772"
+    },
+    {
+      "name": "nested object",
+      "input": {
+        "outer": {
+          "c": 3,
+          "a": 1,
+          "b": 2
+        }
+      },
+      "canonical": "{\"outer\":{\"a\":1,\"b\":2,\"c\":3}}",
+      "sha256": "sha256:4b7a5e9d692620ac333baf29629699411a8c7ff616a40e5d762ec9b288c5882d"
+    },
+    {
+      "name": "array preserves order",
+      "input": [
+        3,
+        1,
+        2
+      ],
+      "canonical": "[3,1,2]",
+      "sha256": "sha256:51bda7ab4e44726cde71fcb6e4b515357059bb6b6dd5146d1fc50f73f11678c6"
+    },
+    {
+      "name": "mixed scalars",
+      "input": {
+        "s": "hello",
+        "n": 42,
+        "b": true,
+        "z": null
+      },
+      "canonical": "{\"b\":true,\"n\":42,\"s\":\"hello\",\"z\":null}",
+      "sha256": "sha256:8260e0920cc66f65386edcfb2726b942c4295d276dc27fabc66d6b003ec97fea"
+    }
+  ]
+}

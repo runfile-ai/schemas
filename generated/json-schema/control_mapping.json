@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
+  "title": "control_mapping",
+  "description": "Runfile control_mapping schemas. Source: src/control-mapping.ts (Zod). Do not edit by hand.",
+  "$ref": "#/definitions/_RunfileBundle",
+  "definitions": {
+    "ControlMapping": {
+      "type": "object",
+      "properties": {
+        "mapping_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "framework": {
+          "type": "string"
+        },
+        "framework_version": {
+          "type": "string"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "control_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "regulatory_tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              },
+              "predicates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "event_count",
+                        "event_exists",
+                        "event_absent",
+                        "aggregate"
+                      ]
+                    },
+                    "expression": {
+                      "type": "string"
+                    },
+                    "threshold": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "expression"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "control_id",
+              "title",
+              "description",
+              "regulatory_tags",
+              "predicates"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "mapping_version",
+        "framework",
+        "framework_version",
+        "published_at",
+        "controls"
+      ],
+      "additionalProperties": false
+    },
+    "_RunfileBundle": {
+      "type": "object",
+      "properties": {
+        "ControlMapping": {
+          "$ref": "#/definitions/ControlMapping"
+        }
+      },
+      "required": [
+        "ControlMapping"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

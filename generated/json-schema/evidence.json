@@ -1,0 +1,721 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
+  "title": "evidence",
+  "description": "Runfile evidence schemas. Source: src/evidence.ts (Zod). Do not edit by hand.",
+  "$ref": "#/definitions/_RunfileBundle",
+  "definitions": {
+    "EvidenceBundle": {
+      "type": "object",
+      "properties": {
+        "bundle_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "bundle_id": {
+          "type": "string",
+          "pattern": "^bun_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^tnt_[0-9a-z]{12}$"
+        },
+        "engagement_id": {
+          "type": "string",
+          "pattern": "^eng_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "period": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "schema_version": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d+\\.\\d+$"
+              },
+              "event_id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "tenant_id": {
+                "type": "string",
+                "pattern": "^tnt_[0-9a-z]{12}$"
+              },
+              "agent_run_id": {
+                "type": "string",
+                "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "parent_event_id": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/event_id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "captured_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "received_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "wall_clock_source": {
+                "type": "string",
+                "enum": [
+                  "aws_time_sync",
+                  "ntp",
+                  "host_system",
+                  "unknown"
+                ]
+              },
+              "sdk": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "runfile-py",
+                      "@runfile/sdk"
+                    ]
+                  },
+                  "version": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$"
+                  },
+                  "framework": {
+                    "type": "string",
+                    "enum": [
+                      "langgraph",
+                      "langgraph_js",
+                      "openai_agents",
+                      "openai_agents_js",
+                      "anthropic_claude",
+                      "anthropic_claude_js",
+                      "mastra",
+                      "vercel_ai_sdk",
+                      "mcp_client",
+                      "otel_generic",
+                      "manual"
+                    ]
+                  },
+                  "framework_version": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/sdk/properties/version"
+                  },
+                  "host": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "framework"
+                ],
+                "additionalProperties": false
+              },
+              "actor": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "human",
+                      "tool",
+                      "system"
+                    ]
+                  },
+                  "agent_identity": {
+                    "type": "string",
+                    "pattern": "^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$",
+                    "description": "DID-format identifier of the agent. Required when type=agent."
+                  },
+                  "human_principal": {
+                    "type": "string",
+                    "pattern": "^tok_[A-Za-z0-9]{16,64}$",
+                    "description": "Vault token identifying the human principal."
+                  },
+                  "delegation_chain": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 16,
+                    "default": []
+                  },
+                  "tool_id": {
+                    "type": "string",
+                    "pattern": "^tool:[a-z0-9_.-]+:[a-z0-9_.-]+$"
+                  },
+                  "tool_version_hash": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false
+              },
+              "action": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent_run_start",
+                      "agent_run_end",
+                      "graph_node_enter",
+                      "graph_node_exit",
+                      "llm_call",
+                      "tool_call",
+                      "tool_result",
+                      "state_read",
+                      "state_write",
+                      "decision",
+                      "handoff",
+                      "human_approval",
+                      "human_input",
+                      "policy_check",
+                      "anomaly_flag",
+                      "sdk_diagnostic"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "success",
+                      "failure",
+                      "partial",
+                      "timeout",
+                      "cancelled"
+                    ]
+                  },
+                  "duration_ms": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              "subject": {
+                "type": "object",
+                "properties": {
+                  "resource_urn": {
+                    "type": "string",
+                    "pattern": "^urn:[a-z0-9][a-z0-9-]{0,31}:.+$",
+                    "maxLength": 512
+                  },
+                  "data_classification": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "internal",
+                      "confidential",
+                      "pii",
+                      "phi",
+                      "pci",
+                      "fci"
+                    ]
+                  },
+                  "regulatory_tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_]+$"
+                    },
+                    "maxItems": 32
+                  }
+                },
+                "additionalProperties": false
+              },
+              "model_ref": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai",
+                      "google",
+                      "aws_bedrock",
+                      "azure_openai",
+                      "ollama",
+                      "self_hosted",
+                      "other"
+                    ]
+                  },
+                  "model_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "model_version_hash": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+                  },
+                  "system_prompt_hash": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+                  },
+                  "tools_hash": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+                  },
+                  "input_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "output_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model_id"
+                ],
+                "additionalProperties": false
+              },
+              "decision": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "denied",
+                      "escalated",
+                      "deferred",
+                      "no_action",
+                      "custom"
+                    ]
+                  },
+                  "outcome_label": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "human_in_the_loop": {
+                    "type": "boolean"
+                  },
+                  "policy_thresholds_crossed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "maxItems": 16
+                  },
+                  "reversed_by_event": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/event_id"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ],
+                "additionalProperties": false
+              },
+              "payload_ref": {
+                "type": "object",
+                "properties": {
+                  "s3_uri": {
+                    "type": "string",
+                    "pattern": "^s3:\\/\\/[a-z0-9.-]{3,63}\\/.+$",
+                    "maxLength": 1024
+                  },
+                  "sha256": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+                  },
+                  "size_bytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 67108864
+                  },
+                  "encryption": {
+                    "type": "object",
+                    "properties": {
+                      "algorithm": {
+                        "type": "string",
+                        "const": "aes-256-gcm"
+                      },
+                      "data_key_wrapped": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "kms_key_arn": {
+                        "type": "string",
+                        "pattern": "^arn:aws:kms:[a-z0-9-]+:[0-9]+:key\\/[a-f0-9-]+$"
+                      }
+                    },
+                    "required": [
+                      "algorithm",
+                      "data_key_wrapped"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "content_type": {
+                    "type": "string",
+                    "enum": [
+                      "application/json",
+                      "text/plain",
+                      "application/vnd.runfile.llm-request+json",
+                      "application/vnd.runfile.llm-response+json",
+                      "application/vnd.runfile.tool-call+json",
+                      "application/vnd.runfile.tool-result+json",
+                      "application/vnd.runfile.state-snapshot+json"
+                    ]
+                  },
+                  "redaction_applied": {
+                    "type": "object",
+                    "properties": {
+                      "redacted_classes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 32
+                      },
+                      "tokenized_classes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 32
+                      },
+                      "classifier_version": {
+                        "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/schema_version"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "s3_uri",
+                  "sha256",
+                  "size_bytes",
+                  "encryption"
+                ],
+                "additionalProperties": false
+              },
+              "redaction_policy_version": {
+                "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/schema_version"
+              },
+              "regulatory_scope_version": {
+                "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/schema_version"
+              },
+              "anomaly_flags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "missing_ambient_context",
+                        "chain_break",
+                        "out_of_order_arrival",
+                        "model_version_drift",
+                        "unknown_agent_identity",
+                        "data_classification_mismatch",
+                        "policy_threshold_without_hitl",
+                        "unauthorized_tool_invocation",
+                        "redaction_policy_mismatch",
+                        "schema_version_warning"
+                      ]
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "info",
+                        "warning",
+                        "error",
+                        "critical"
+                      ]
+                    },
+                    "detail": {
+                      "type": "string",
+                      "maxLength": 1024
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "severity"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 32
+              },
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "production",
+                  "staging",
+                  "development"
+                ]
+              },
+              "labels": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "propertyNames": {
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                }
+              },
+              "prev_hash": {
+                "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+              },
+              "event_hash": {
+                "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+              },
+              "merkle_inclusion": {
+                "type": "object",
+                "properties": {
+                  "manifest_uri": {
+                    "type": "string",
+                    "pattern": "^s3:\\/\\/[a-z0-9.-]{3,63}\\/.+$"
+                  },
+                  "leaf_index": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "merkle_root": {
+                    "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
+                  }
+                },
+                "required": [
+                  "manifest_uri",
+                  "leaf_index",
+                  "merkle_root"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema_version",
+              "event_id",
+              "tenant_id",
+              "agent_run_id",
+              "parent_event_id",
+              "captured_at",
+              "received_at",
+              "wall_clock_source",
+              "sdk",
+              "actor",
+              "action",
+              "subject",
+              "redaction_policy_version",
+              "prev_hash",
+              "event_hash"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "manifest_version": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d+\\.\\d+$"
+              },
+              "schema_version": {
+                "$ref": "#/definitions/EvidenceBundle/properties/manifests/items/properties/manifest_version"
+              },
+              "tenant_id": {
+                "type": "string",
+                "pattern": "^tnt_[0-9a-z]{12}$"
+              },
+              "day_utc": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "built_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "leaf_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "merkle_root": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              },
+              "prev_manifest_root": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/EvidenceBundle/properties/manifests/items/properties/merkle_root"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "leaves": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "event_id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "event_hash": {
+                      "$ref": "#/definitions/EvidenceBundle/properties/manifests/items/properties/merkle_root"
+                    },
+                    "leaf_index": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "event_id",
+                    "event_hash",
+                    "leaf_index"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "kms_signature": {
+                "type": "object",
+                "properties": {
+                  "kms_key_arn": {
+                    "type": "string"
+                  },
+                  "signing_algorithm": {
+                    "type": "string"
+                  },
+                  "signature_base64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kms_key_arn",
+                  "signing_algorithm",
+                  "signature_base64"
+                ],
+                "additionalProperties": false
+              },
+              "attestation_document": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rekor_entry": {
+                "type": "object",
+                "properties": {
+                  "log_index": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "log_id": {
+                    "type": "string"
+                  },
+                  "inclusion_proof": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "log_index",
+                  "log_id",
+                  "inclusion_proof"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "manifest_version",
+              "schema_version",
+              "tenant_id",
+              "day_utc",
+              "built_at",
+              "leaf_count",
+              "merkle_root",
+              "prev_manifest_root",
+              "leaves",
+              "kms_signature",
+              "attestation_document"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "schema_versions_used": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceBundle/properties/bundle_version"
+          }
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "bundle_version",
+        "bundle_id",
+        "generated_at",
+        "tenant_id",
+        "period",
+        "events",
+        "manifests",
+        "schema_versions_used"
+      ],
+      "additionalProperties": false
+    },
+    "_RunfileBundle": {
+      "type": "object",
+      "properties": {
+        "EvidenceBundle": {
+          "$ref": "#/definitions/EvidenceBundle"
+        }
+      },
+      "required": [
+        "EvidenceBundle"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,800 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
+  "title": "ingest",
+  "description": "Runfile ingest schemas. Source: src/ingest.ts (Zod). Do not edit by hand.",
+  "$ref": "#/definitions/_RunfileBundle",
+  "definitions": {
+    "BatchSubmission": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "type": "string",
+          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EventSubmission"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "batch_id",
+        "events"
+      ],
+      "additionalProperties": false
+    },
+    "EventSubmission": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "agent_run_id": {
+          "type": "string",
+          "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "parent_event_id": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EventSubmission/properties/event_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "wall_clock_source": {
+          "type": "string",
+          "enum": [
+            "aws_time_sync",
+            "ntp",
+            "host_system",
+            "unknown"
+          ]
+        },
+        "sdk": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "enum": [
+                "runfile-py",
+                "@runfile/sdk"
+              ]
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$"
+            },
+            "framework": {
+              "type": "string",
+              "enum": [
+                "langgraph",
+                "langgraph_js",
+                "openai_agents",
+                "openai_agents_js",
+                "anthropic_claude",
+                "anthropic_claude_js",
+                "mastra",
+                "vercel_ai_sdk",
+                "mcp_client",
+                "otel_generic",
+                "manual"
+              ]
+            },
+            "framework_version": {
+              "$ref": "#/definitions/EventSubmission/properties/sdk/properties/version"
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "framework"
+          ],
+          "additionalProperties": false
+        },
+        "actor": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "agent",
+                "human",
+                "tool",
+                "system"
+              ]
+            },
+            "agent_identity": {
+              "type": "string",
+              "pattern": "^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$",
+              "description": "DID-format identifier of the agent. Required when type=agent."
+            },
+            "human_principal": {
+              "type": "string",
+              "pattern": "^tok_[A-Za-z0-9]{16,64}$",
+              "description": "Vault token identifying the human principal."
+            },
+            "delegation_chain": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 16,
+              "default": []
+            },
+            "tool_id": {
+              "type": "string",
+              "pattern": "^tool:[a-z0-9_.-]+:[a-z0-9_.-]+$"
+            },
+            "tool_version_hash": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        "action": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "agent_run_start",
+                "agent_run_end",
+                "graph_node_enter",
+                "graph_node_exit",
+                "llm_call",
+                "tool_call",
+                "tool_result",
+                "state_read",
+                "state_write",
+                "decision",
+                "handoff",
+                "human_approval",
+                "human_input",
+                "policy_check",
+                "anomaly_flag",
+                "sdk_diagnostic"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "success",
+                "failure",
+                "partial",
+                "timeout",
+                "cancelled"
+              ]
+            },
+            "duration_ms": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "resource_urn": {
+              "type": "string",
+              "pattern": "^urn:[a-z0-9][a-z0-9-]{0,31}:.+$",
+              "maxLength": 512
+            },
+            "data_classification": {
+              "type": "string",
+              "enum": [
+                "public",
+                "internal",
+                "confidential",
+                "pii",
+                "phi",
+                "pci",
+                "fci"
+              ]
+            },
+            "regulatory_tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "maxItems": 32
+            }
+          },
+          "additionalProperties": false
+        },
+        "model_ref": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "anthropic",
+                "openai",
+                "google",
+                "aws_bedrock",
+                "azure_openai",
+                "ollama",
+                "self_hosted",
+                "other"
+              ]
+            },
+            "model_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "model_version_hash": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/tool_version_hash"
+            },
+            "system_prompt_hash": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/tool_version_hash"
+            },
+            "tools_hash": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/tool_version_hash"
+            },
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            }
+          },
+          "required": [
+            "provider",
+            "model_id"
+          ],
+          "additionalProperties": false
+        },
+        "decision": {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "approved",
+                "denied",
+                "escalated",
+                "deferred",
+                "no_action",
+                "custom"
+              ]
+            },
+            "outcome_label": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "human_in_the_loop": {
+              "type": "boolean"
+            },
+            "policy_thresholds_crossed": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "maxItems": 16
+            },
+            "reversed_by_event": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "required": [
+            "outcome"
+          ],
+          "additionalProperties": false
+        },
+        "payload_ref": {
+          "$ref": "#/definitions/PayloadSubmission"
+        },
+        "redaction_policy_version": {
+          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+        },
+        "regulatory_scope_version": {
+          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+        },
+        "anomaly_flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_ambient_context",
+                  "chain_break",
+                  "out_of_order_arrival",
+                  "model_version_drift",
+                  "unknown_agent_identity",
+                  "data_classification_mismatch",
+                  "policy_threshold_without_hitl",
+                  "unauthorized_tool_invocation",
+                  "redaction_policy_mismatch",
+                  "schema_version_warning"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "warning",
+                  "error",
+                  "critical"
+                ]
+              },
+              "detail": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            },
+            "required": [
+              "code",
+              "severity"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "production",
+            "staging",
+            "development"
+          ]
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$"
+          }
+        },
+        "prev_hash_intent": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "event_id",
+        "agent_run_id",
+        "parent_event_id",
+        "captured_at",
+        "wall_clock_source",
+        "sdk",
+        "actor",
+        "action",
+        "subject",
+        "redaction_policy_version",
+        "prev_hash_intent"
+      ],
+      "additionalProperties": false
+    },
+    "PayloadSubmission": {
+      "type": "object",
+      "properties": {
+        "s3_uri_intent": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "sha256": {
+          "$ref": "#/definitions/EventSubmission/properties/prev_hash_intent"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "encryption": {
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "aes-256-gcm"
+            },
+            "data_key_wrapped": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "kms_key_arn": {
+              "type": "string",
+              "pattern": "^arn:aws:kms:[a-z0-9-]+:[0-9]+:key\\/[a-f0-9-]+$"
+            }
+          },
+          "required": [
+            "algorithm",
+            "data_key_wrapped"
+          ],
+          "additionalProperties": false
+        },
+        "content_type": {
+          "type": "string",
+          "enum": [
+            "application/json",
+            "text/plain",
+            "application/vnd.runfile.llm-request+json",
+            "application/vnd.runfile.llm-response+json",
+            "application/vnd.runfile.tool-call+json",
+            "application/vnd.runfile.tool-result+json",
+            "application/vnd.runfile.state-snapshot+json"
+          ]
+        },
+        "redaction_applied": {
+          "type": "object",
+          "properties": {
+            "redacted_classes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 32
+            },
+            "tokenized_classes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 32
+            },
+            "classifier_version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ciphertext_base64": {
+          "type": "string",
+          "maxLength": 7340032
+        }
+      },
+      "required": [
+        "sha256",
+        "size_bytes",
+        "encryption",
+        "ciphertext_base64"
+      ],
+      "additionalProperties": false
+    },
+    "BatchAccepted": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "type": "string",
+          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "accepted_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accepted_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AcceptedEvent"
+          }
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "batch_id",
+        "accepted_count",
+        "accepted_events",
+        "received_at"
+      ],
+      "additionalProperties": false
+    },
+    "BatchPartial": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "type": "string",
+          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "accepted_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejected_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accepted_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AcceptedEvent"
+          }
+        },
+        "rejected_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EventRejection"
+          }
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "batch_id",
+        "accepted_count",
+        "rejected_count",
+        "accepted_events",
+        "rejected_events",
+        "received_at"
+      ],
+      "additionalProperties": false
+    },
+    "BatchRejected": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "type": "string",
+          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "error": {
+          "$ref": "#/definitions/IngestError"
+        },
+        "rejected_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EventRejection"
+          }
+        }
+      },
+      "required": [
+        "batch_id",
+        "error",
+        "rejected_events"
+      ],
+      "additionalProperties": false
+    },
+    "AcceptedEvent": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "$ref": "#/definitions/EventSubmission/properties/event_id"
+        },
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload_s3_uri": {
+          "type": "string"
+        },
+        "processing_status": {
+          "type": "string",
+          "const": "queued"
+        }
+      },
+      "required": [
+        "event_id",
+        "accepted_at",
+        "payload_s3_uri"
+      ],
+      "additionalProperties": false
+    },
+    "EventRejection": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": "string",
+          "enum": [
+            "schema_validation_failed",
+            "duplicate_event_id",
+            "payload_too_large",
+            "payload_sha256_mismatch",
+            "kms_key_unknown",
+            "kms_key_unauthorized",
+            "actor_scope_violation",
+            "environment_scope_violation",
+            "region_scope_violation",
+            "timestamp_out_of_range",
+            "missing_required_conditional_field"
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "field_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "error_code",
+        "error_message"
+      ],
+      "additionalProperties": false
+    },
+    "IngestError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "enum": [
+            "unauthorized",
+            "forbidden",
+            "bad_request",
+            "schema_version_unsupported",
+            "batch_too_large",
+            "rate_limited",
+            "quota_exceeded",
+            "service_unavailable",
+            "internal_error",
+            "idempotency_conflict"
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "retry_after_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "error_code",
+        "error_message"
+      ],
+      "additionalProperties": false
+    },
+    "RedactionPolicy": {
+      "type": "object",
+      "properties": {
+        "policy_version": {
+          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+        },
+        "classification_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "classification": {
+                "type": "string"
+              },
+              "treatment": {
+                "type": "string",
+                "enum": [
+                  "redact",
+                  "tokenize",
+                  "encrypt"
+                ]
+              },
+              "detector": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "classification",
+              "treatment"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "fetched_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0,
+          "default": 300
+        }
+      },
+      "required": [
+        "policy_version",
+        "classification_rules",
+        "fetched_at"
+      ],
+      "additionalProperties": false
+    },
+    "_RunfileBundle": {
+      "type": "object",
+      "properties": {
+        "BatchSubmission": {
+          "$ref": "#/definitions/BatchSubmission"
+        },
+        "EventSubmission": {
+          "$ref": "#/definitions/EventSubmission"
+        },
+        "PayloadSubmission": {
+          "$ref": "#/definitions/PayloadSubmission"
+        },
+        "BatchAccepted": {
+          "$ref": "#/definitions/BatchAccepted"
+        },
+        "BatchPartial": {
+          "$ref": "#/definitions/BatchPartial"
+        },
+        "BatchRejected": {
+          "$ref": "#/definitions/BatchRejected"
+        },
+        "AcceptedEvent": {
+          "$ref": "#/definitions/AcceptedEvent"
+        },
+        "EventRejection": {
+          "$ref": "#/definitions/EventRejection"
+        },
+        "IngestError": {
+          "$ref": "#/definitions/IngestError"
+        },
+        "RedactionPolicy": {
+          "$ref": "#/definitions/RedactionPolicy"
+        }
+      },
+      "required": [
+        "BatchSubmission",
+        "EventSubmission",
+        "PayloadSubmission",
+        "BatchAccepted",
+        "BatchPartial",
+        "BatchRejected",
+        "AcceptedEvent",
+        "EventRejection",
+        "IngestError",
+        "RedactionPolicy"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

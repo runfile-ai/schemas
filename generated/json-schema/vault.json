@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
+  "title": "vault",
+  "description": "Runfile vault schemas. Source: src/vault.ts (Zod). Do not edit by hand.",
+  "$ref": "#/definitions/_RunfileBundle",
+  "definitions": {
+    "TokenizeRequest": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "classification": {
+          "type": "string",
+          "enum": [
+            "person_name",
+            "email",
+            "phone",
+            "address",
+            "dob",
+            "tax_id_partial",
+            "account_id",
+            "user_handle",
+            "other_identifier"
+          ]
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "normalize": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "value",
+        "classification"
+      ],
+      "additionalProperties": false
+    },
+    "TokenizeResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "pattern": "^tok_[A-Za-z0-9]{24}$"
+        },
+        "created": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "token",
+        "created"
+      ],
+      "additionalProperties": false
+    },
+    "TokenizeBatchRequest": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TokenizeRequest"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "TokenizeBatchResponse": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TokenizeResponse"
+          }
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveRequest": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/TokenizeResponse/properties/token"
+        },
+        "requester": {
+          "$ref": "#/definitions/RequesterContext"
+        },
+        "justification": {
+          "$ref": "#/definitions/Justification"
+        }
+      },
+      "required": [
+        "token",
+        "requester",
+        "justification"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/TokenizeResponse/properties/token"
+        },
+        "value": {
+          "type": "string"
+        },
+        "classification": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "audit_event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        }
+      },
+      "required": [
+        "token",
+        "value",
+        "classification",
+        "audit_event_id"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveBatchRequest": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TokenizeResponse/properties/token"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "requester": {
+          "$ref": "#/definitions/RequesterContext"
+        },
+        "justification": {
+          "$ref": "#/definitions/Justification"
+        }
+      },
+      "required": [
+        "tokens",
+        "requester",
+        "justification"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveBatchResponse": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ResolveBatchResult"
+          }
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveBatchResult": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/TokenizeResponse/properties/token"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "not_found",
+            "tombstoned",
+            "denied"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "tombstone_reason": {
+          "type": "string",
+          "enum": [
+            "retention_expired",
+            "rtbf_processed",
+            "tenant_offboarded"
+          ]
+        },
+        "denial_reason": {
+          "type": "string"
+        },
+        "audit_event_id": {
+          "$ref": "#/definitions/ResolveResponse/properties/audit_event_id"
+        }
+      },
+      "required": [
+        "token",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "LifecycleRequest": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "tombstone_immediately",
+            "tombstone_at",
+            "place_on_legal_hold",
+            "release_legal_hold"
+          ]
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 1024
+        },
+        "approver_member_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "LifecycleResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/TokenizeResponse/properties/token"
+        },
+        "new_state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "scheduled_for_tombstone",
+            "tombstoned",
+            "on_legal_hold"
+          ]
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "audit_event_id": {
+          "$ref": "#/definitions/ResolveResponse/properties/audit_event_id"
+        }
+      },
+      "required": [
+        "token",
+        "new_state",
+        "audit_event_id"
+      ],
+      "additionalProperties": false
+    },
+    "RequesterContext": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^tnt_[0-9a-z]{12}$"
+        },
+        "member_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "compliance_officer",
+            "internal_auditor",
+            "external_auditor",
+            "workspace_admin",
+            "workspace_owner"
+          ]
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "mfa_age_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ip_address": {
+          "type": "string"
+        },
+        "user_agent": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "tenant_id",
+        "member_id",
+        "role",
+        "session_id",
+        "mfa_age_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "Justification": {
+      "type": "object",
+      "properties": {
+        "engagement_id": {
+          "type": "string",
+          "pattern": "^eng_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "sample_review",
+            "finding_investigation",
+            "escalation_workflow",
+            "rtbf_processing",
+            "regulatory_inquiry",
+            "other"
+          ]
+        },
+        "free_text": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 1024
+        },
+        "approver_member_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "engagement_id",
+        "reason_code",
+        "free_text"
+      ],
+      "additionalProperties": false
+    },
+    "VaultError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "enum": [
+            "unauthorized",
+            "forbidden",
+            "classification_not_vaultable",
+            "invalid_value",
+            "invalid_classification",
+            "rate_limited",
+            "mfa_too_old",
+            "engagement_not_active",
+            "engagement_scope_violation",
+            "approval_required",
+            "approval_invalid",
+            "token_not_found",
+            "token_tombstoned",
+            "lifecycle_conflict",
+            "internal_error"
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "retry_after_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "error_code",
+        "error_message"
+      ],
+      "additionalProperties": false
+    },
+    "_RunfileBundle": {
+      "type": "object",
+      "properties": {
+        "TokenizeRequest": {
+          "$ref": "#/definitions/TokenizeRequest"
+        },
+        "TokenizeResponse": {
+          "$ref": "#/definitions/TokenizeResponse"
+        },
+        "TokenizeBatchRequest": {
+          "$ref": "#/definitions/TokenizeBatchRequest"
+        },
+        "TokenizeBatchResponse": {
+          "$ref": "#/definitions/TokenizeBatchResponse"
+        },
+        "ResolveRequest": {
+          "$ref": "#/definitions/ResolveRequest"
+        },
+        "ResolveResponse": {
+          "$ref": "#/definitions/ResolveResponse"
+        },
+        "ResolveBatchRequest": {
+          "$ref": "#/definitions/ResolveBatchRequest"
+        },
+        "ResolveBatchResponse": {
+          "$ref": "#/definitions/ResolveBatchResponse"
+        },
+        "ResolveBatchResult": {
+          "$ref": "#/definitions/ResolveBatchResult"
+        },
+        "LifecycleRequest": {
+          "$ref": "#/definitions/LifecycleRequest"
+        },
+        "LifecycleResponse": {
+          "$ref": "#/definitions/LifecycleResponse"
+        },
+        "RequesterContext": {
+          "$ref": "#/definitions/RequesterContext"
+        },
+        "Justification": {
+          "$ref": "#/definitions/Justification"
+        },
+        "VaultError": {
+          "$ref": "#/definitions/VaultError"
+        }
+      },
+      "required": [
+        "TokenizeRequest",
+        "TokenizeResponse",
+        "TokenizeBatchRequest",
+        "TokenizeBatchResponse",
+        "ResolveRequest",
+        "ResolveResponse",
+        "ResolveBatchRequest",
+        "ResolveBatchResponse",
+        "ResolveBatchResult",
+        "LifecycleRequest",
+        "LifecycleResponse",
+        "RequesterContext",
+        "Justification",
+        "VaultError"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

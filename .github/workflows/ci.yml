@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pip install 'datamodel-code-generator>=0.25' pydantic
+
+      - run: pnpm run lint
+      - run: pnpm test
+      - run: pnpm run generate
+      - run: pnpm run check-drift
+      - run: pnpm run build
+
+      # Cross-language canonical-JSON parity: Python and Go must reproduce
+      # the same bytes as the TS leg for every fixture in
+      # tests/fixtures/canonical-vectors.json.
+      - name: Python canonical parity
+        run: |
+          pip install ./generated/python
+          python -m unittest discover -s tests/python -v
+      - name: Go canonical parity
+        run: go test ./tests/go/...

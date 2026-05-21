@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Generated artifacts are committed for downstream consumers, but local builds
+# of the same files should not show as dirty when the source hasn't changed.
+# (CI's drift check enforces that committed `generated/` matches `pnpm run generate`.)
+
+.DS_Store
+.env
+.env.local
+*.log
+coverage/
+.vitest-cache/
