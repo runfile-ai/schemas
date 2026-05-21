@@ -52,8 +52,8 @@ class MerkleManifest(BaseModel):
     built_at: AwareDatetime
     leaf_count: int = Field(..., ge=0)
     merkle_root: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
-    prev_manifest_root: MerkleRoot | None = None
+    prev_manifest_root: MerkleRoot | None
     leaves: list[Leaf]
     kms_signature: KmsSignature
-    attestation_document: str | None = None
+    attestation_document: str | None
     rekor_entry: RekorEntry | None = None

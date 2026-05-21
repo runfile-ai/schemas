@@ -29,10 +29,12 @@ jobs:
           go-version: '1.22'
 
       - run: pnpm install --frozen-lockfile
-      # Pin floor on datamodel-code-generator: 0.40 is the first line we know
-      # accepts `--target-python-version 3.10` (older floors silently dropped
-      # 3.9, breaking CI without changing generate.ts).
-      - run: pip install 'datamodel-code-generator>=0.40,<1.0' 'pydantic>=2.5'
+      # Pin floor on datamodel-code-generator: 0.57+ emits the stricter
+      # required-nullable form (no `= None` default for Zod `.nullable()`)
+      # and applies `constr(pattern=...)` to dict keys. Older versions are
+      # accepted by CLI but produce different bytes, causing check-drift
+      # failures between local and CI.
+      - run: pip install 'datamodel-code-generator>=0.57,<1.0' 'pydantic>=2.5'
 
       - run: pnpm run lint
       - run: pnpm test

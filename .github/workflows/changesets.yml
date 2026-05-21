@@ -1,0 +1,79 @@
+name: Changesets
+
+# Runs on every push to main. If there are pending changesets in `.changeset/`,
+# the action opens (or updates) a "Version Packages" PR that bumps versions and
+# writes CHANGELOG.md. When that PR is merged, the action runs again and (since
+# no changesets remain) calls `changeset publish` — which publishes to npm and
+# pushes a `vX.Y.Z` git tag. That tag in turn triggers .github/workflows/release.yml
+# for Go module announcement (and PyPI when re-enabled at GA).
+
+on:
+  push:
+    branches: [main]
+
+# `contents: write` lets the action push the version-bump commit and tags.
+# `pull-requests: write` lets it open/update the "Version Packages" PR.
+# `id-token: write` is needed if we ever enable npm provenance.
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+# Avoid clobbering a still-running version PR if main is updated in quick
+# succession.
+concurrency:
+  group: changesets-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so changesets can compute changelog entries against
+          # the last tag.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pip install 'datamodel-code-generator>=0.57,<1.0' 'pydantic>=2.5'
+
+      # Generate + verify before any publish can happen. The version PR also
+      # passes through CI on the next push, but running it here is a final
+      # belt-and-suspenders check on the merge commit itself.
+      - run: pnpm run lint
+      - run: pnpm test
+      - run: pnpm run generate
+      - run: pnpm run check-drift
+
+      - name: Create Version PR or publish
+        uses: changesets/action@v1
+        with:
+          # When there are no pending changesets (i.e. the version PR just
+          # merged), `publish` runs and ships to npm + tags. Otherwise the
+          # action just opens/updates the version PR.
+          version: pnpm changeset:version
+          publish: pnpm changeset:publish
+          commit: 'chore(release): version packages'
+          title: 'chore(release): version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

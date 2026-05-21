@@ -6,7 +6,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel, constr, model_validator
 
 
 class WallClockSource(Enum):
@@ -401,7 +401,7 @@ class EventSubmission(BaseModel):
     schema_version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
     event_id: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
     agent_run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
-    parent_event_id: EventId | None = None
+    parent_event_id: EventId | None
     captured_at: AwareDatetime
     wall_clock_source: WallClockSource
     sdk: Sdk
@@ -415,7 +415,7 @@ class EventSubmission(BaseModel):
     regulatory_scope_version: SchemaVersion | None = None
     anomaly_flags: list[AnomalyFlag] | None = Field(None, max_length=32)
     environment: Environment | None = None
-    labels: dict[str, str] | None = None
+    labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
     prev_hash_intent: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
 
     @model_validator(mode='after')

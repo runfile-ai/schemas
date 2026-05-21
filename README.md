@@ -8,7 +8,7 @@ The single source of truth for every data shape that crosses a service boundary 
   - npm — [`@runfile-ai/schemas`](https://www.npmjs.com/package/@runfile-ai/schemas)
   - PyPI — [`runfile-ai-schemas`](https://pypi.org/project/runfile-ai-schemas/)
   - Go modules — [`github.com/runfile-ai/schemas`](https://pkg.go.dev/github.com/runfile-ai/schemas) (via Git tags, no registry)
-- **Versioned:** strict semver. Releases are tagged manually because the blast radius is large.
+- **Versioned:** strict semver, managed by [Changesets](https://github.com/changesets/changesets). Every release PR is reviewable before it ships.
 
 See [`private/apispecs/schemas.md`](../private/apispecs/schemas.md) (internal) for the full design rationale.
 
@@ -43,9 +43,9 @@ pnpm run publish-all  # local fallback for publishing (CI is the normal path)
 ### Toolchain required for `pnpm run generate`
 
 - **Node 20+** — always
-- **Python 3.9+** with `datamodel-code-generator` on PATH (Step 2: Pydantic generation)
+- **Python 3.10+** with `datamodel-code-generator >= 0.57` on PATH (Step 2: Pydantic generation). Python 3.9 caps at `datamodel-code-generator 0.45`, which produces an older form that CI rejects via the drift check.
   ```bash
-  pip3 install --user 'datamodel-code-generator[http]'
+  python3.11 -m pip install --user 'datamodel-code-generator[http]>=0.57,<1.0'
   ```
 - **quicktype** — installed as a devDependency, invoked via `pnpm exec` (Step 3: Go generation). No separate install needed.
 
@@ -103,33 +103,49 @@ Strict semver:
 - **Minor** (`1.0 → 1.1`): additive only. New optional fields, new enum values.
 - **Patch** (`1.0.0 → 1.0.1`): documentation fixes only.
 
-The npm/PyPI/Go package version stays in lockstep — `package.json#version` is the master, and `generate.ts` templates it into `generated/python/pyproject.toml` automatically. The Go consumer-visible version is whatever Git tag you push (`v1.1.0`).
+The npm/Go package version stays in lockstep — `package.json#version` is the master, and `generate.ts` templates it into `generated/python/pyproject.toml` automatically. The Go consumer-visible version is whatever Git tag is pushed (`v1.1.0`).
 
-The npm/PyPI/Go package version may differ from the `event.schema_version` field embedded in events; in v1 they are kept in sync.
+The package version may differ from the `event.schema_version` field embedded in events; in v1 they are kept in sync.
 
 ## Publishing
 
-### Normal path: CI on tagged push
+Releases are driven by [Changesets](https://github.com/changesets/changesets). Every change that should ship to consumers gets a changeset file describing the bump (`patch` / `minor` / `major`) and a one-line summary. Changesets accumulate on `main` until they're released as a batch.
+
+### Day-to-day: include a changeset with your PR
 
 ```bash
-# Bump version in package.json (1.0.0 → 1.1.0), commit, tag, push.
-pnpm version 1.1.0       # bumps package.json + creates git tag v1.1.0
-git push && git push --tags
+pnpm changeset
+# Pick patch/minor/major, write a 1–2 sentence summary.
+# A markdown file lands in .changeset/; commit it alongside your code.
 ```
 
-The `release.yml` workflow then:
-1. Regenerates everything from Zod and verifies no drift
-2. Publishes `@runfile-ai/schemas@1.1.0` to npm (uses `NPM_TOKEN` secret)
-3. Builds `runfile-ai-schemas==1.1.0` wheel + sdist and publishes to PyPI via [trusted publishing](https://docs.pypi.org/trusted-publishers/) (no secret required — OIDC)
-4. The Git tag itself is the Go release; consumers run `go get github.com/runfile-ai/schemas@v1.1.0`
+If your PR doesn't change anything consumer-visible (CI tweaks, docs, internal refactor), skip this — no changeset needed.
+
+### Cutting a release
+
+You don't tag manually. The flow is:
+
+1. Merge PRs to `main` with their changesets.
+2. The `Changesets` workflow opens a `chore(release): version packages` PR. It bumps `package.json`, writes `CHANGELOG.md`, and updates `generated/python/pyproject.toml` (via `pnpm run generate`).
+3. Review that PR. When merged:
+   - The same workflow runs again, calls `changeset publish`, which:
+     - Publishes `@runfile-ai/schemas@X.Y.Z` to npm
+     - Pushes the `vX.Y.Z` git tag
+   - The tag push triggers `release.yml`, which announces the Go module path (and will publish to PyPI once the runfile-ai PyPI org is set up).
+
+You can preview what the next release will look like locally:
+
+```bash
+pnpm changeset status --verbose
+```
 
 ### One-time setup before the first release
 
 | Registry | What to set up |
 |---|---|
 | **npm** | `NPM_TOKEN` repo secret (an automation token from npmjs.org with `Publish` rights on `@runfile-ai/schemas`) |
-| **PyPI** | A trusted publisher on [pypi.org/manage/account/publishing/](https://pypi.org/manage/account/publishing/) pointing at this repo's `release.yml` workflow and `release` GitHub environment. Project `runfile-ai-schemas` must exist (or be reservable as a pending publisher). |
-| **Go** | Nothing. The repo must be public (or the consumer's `GOPRIVATE` must include it) and tags must be pushed. |
+| **PyPI** | *Deferred to GA.* A trusted publisher on [pypi.org/manage/account/publishing/](https://pypi.org/manage/account/publishing/) pointing at this repo's `release.yml` workflow and `release` GitHub environment. Until then the PyPI step in `release.yml` is commented out. |
+| **Go** | Nothing. The repo must be public (or the consumer's `GOPRIVATE` must include it) and tags must be pushed — Changesets pushes them for you. |
 
 ### Manual fallback: `pnpm run publish-all`
 

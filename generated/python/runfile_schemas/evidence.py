@@ -6,7 +6,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel, constr
 
 
 class Period(BaseModel):
@@ -345,7 +345,7 @@ class Event(BaseModel):
     event_id: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
     tenant_id: str = Field(..., pattern='^tnt_[0-9a-z]{12}$')
     agent_run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
-    parent_event_id: EventId | None = None
+    parent_event_id: EventId | None
     captured_at: AwareDatetime
     received_at: AwareDatetime
     wall_clock_source: WallClockSource
@@ -360,7 +360,7 @@ class Event(BaseModel):
     regulatory_scope_version: SchemaVersion | None = None
     anomaly_flags: list[AnomalyFlag] | None = Field(None, max_length=32)
     environment: Environment | None = None
-    labels: dict[str, str] | None = None
+    labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
     prev_hash: ToolVersionHash
     event_hash: ToolVersionHash
     merkle_inclusion: MerkleInclusion | None = None
@@ -386,10 +386,10 @@ class Manifest(BaseModel):
     built_at: AwareDatetime
     leaf_count: int = Field(..., ge=0)
     merkle_root: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
-    prev_manifest_root: MerkleRoot | None = None
+    prev_manifest_root: MerkleRoot | None
     leaves: list[Leaf]
     kms_signature: KmsSignature
-    attestation_document: str | None = None
+    attestation_document: str | None
     rekor_entry: RekorEntry | None = None
 
 

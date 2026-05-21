@@ -282,11 +282,16 @@ function step1WriteJsonSchema(bundle: DomainBundle): string {
 // ---------------------------------------------------------------------------
 
 function findDatamodelCodegen(): string {
+  // Prefer newer Pythons first: datamodel-codegen >=0.46 dropped Python 3.9,
+  // so the 3.9 binary on a multi-version host is stuck at 0.45 and produces
+  // older (less-correct) Pydantic output. Pick the newest available so local
+  // matches CI (which installs the latest under Python 3.11).
   const candidates = [
-    `${process.env.HOME}/Library/Python/3.9/bin/datamodel-codegen`,
-    `${process.env.HOME}/Library/Python/3.10/bin/datamodel-codegen`,
-    `${process.env.HOME}/Library/Python/3.11/bin/datamodel-codegen`,
+    `${process.env.HOME}/Library/Python/3.13/bin/datamodel-codegen`,
     `${process.env.HOME}/Library/Python/3.12/bin/datamodel-codegen`,
+    `${process.env.HOME}/Library/Python/3.11/bin/datamodel-codegen`,
+    `${process.env.HOME}/Library/Python/3.10/bin/datamodel-codegen`,
+    `${process.env.HOME}/Library/Python/3.9/bin/datamodel-codegen`,
     '/usr/local/bin/datamodel-codegen',
     'datamodel-codegen',
   ];

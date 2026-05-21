@@ -1,6 +1,8 @@
 node_modules/
 dist/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Generated artifacts are committed for downstream consumers, but local builds
 # of the same files should not show as dirty when the source hasn't changed.
