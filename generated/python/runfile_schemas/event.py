@@ -221,9 +221,8 @@ class PayloadEncryption(BaseModel):
     )
     algorithm: Literal['aes-256-gcm']
     data_key_wrapped: str = Field(..., max_length=4096)
-    kms_key_arn: str | None = Field(
-        None, pattern='^arn:aws:kms:[a-z0-9-]+:[0-9]+:key\\/[a-f0-9-]+$'
-    )
+    key_id: str | None = Field(None, max_length=256)
+    nonce: str = Field(..., max_length=64)
 
 
 class OtelAttributes(BaseModel):

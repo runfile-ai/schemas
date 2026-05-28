@@ -154,7 +154,8 @@ type PayloadRef struct {
 type Encryption struct {
 	Algorithm      Algorithm `json:"algorithm"`
 	DataKeyWrapped string    `json:"data_key_wrapped"`
-	KmsKeyArn      *string   `json:"kms_key_arn,omitempty"`
+	KeyID          *string   `json:"key_id,omitempty"`
+	Nonce          string    `json:"nonce"`
 }
 
 type RedactionApplied struct {
