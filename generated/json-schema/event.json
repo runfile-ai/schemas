@@ -4,24 +4,157 @@
   "description": "Runfile event schemas. Source: src/event.ts (Zod). Do not edit by hand.",
   "$ref": "#/definitions/_RunfileBundle",
   "definitions": {
-    "RunfileEvent": {
+    "RunfileRun": {
       "type": "object",
       "properties": {
         "schema_version": {
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
-        "event_id": {
+        "run_id": {
           "type": "string",
-          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
         },
         "tenant_id": {
           "type": "string",
           "pattern": "^tnt_[0-9a-z]{12}$"
         },
-        "agent_run_id": {
+        "agent_identity": {
           "type": "string",
-          "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+          "pattern": "^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$"
+        },
+        "conversation_id": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "awaiting_human",
+            "awaiting_webhook",
+            "awaiting_schedule",
+            "ended"
+          ]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "success",
+                "failure",
+                "incomplete",
+                "abandoned"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delegated_from": {
+          "$ref": "#/definitions/RunReference"
+        },
+        "handed_off_from": {
+          "$ref": "#/definitions/RunReference"
+        },
+        "scheduled_from": {
+          "$ref": "#/definitions/RunReference"
+        },
+        "invoked_by": {
+          "$ref": "#/definitions/RunReference"
+        },
+        "continued_from": {
+          "$ref": "#/definitions/RunReference"
+        },
+        "active_duration_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suspension_intervals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SuspensionInterval"
+          },
+          "maxItems": 100
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "production",
+            "staging",
+            "development"
+          ]
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$"
+          },
+          "maxProperties": 16
+        },
+        "redaction_policy_version": {
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
+        },
+        "regulatory_scope_version": {
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
+        },
+        "sdk_at_start": {
+          "$ref": "#/definitions/SdkMetadata"
+        },
+        "merkle_inclusions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MerkleInclusion"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "tenant_id",
+        "agent_identity",
+        "lifecycle_state",
+        "started_at",
+        "redaction_policy_version"
+      ],
+      "additionalProperties": false
+    },
+    "RunfileEvent": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "tenant_id": {
+          "$ref": "#/definitions/RunfileRun/properties/tenant_id"
+        },
+        "run_id": {
+          "$ref": "#/definitions/RunfileRun/properties/run_id"
         },
         "parent_event_id": {
           "anyOf": [
@@ -32,6 +165,10 @@
               "type": "null"
             }
           ]
+        },
+        "parallel_group_id": {
+          "type": "string",
+          "pattern": "^pg_[0-9A-HJKMNP-TV-Z]{26}$"
         },
         "captured_at": {
           "type": "string",
@@ -68,14 +205,29 @@
         "decision": {
           "$ref": "#/definitions/Decision"
         },
+        "suspension_details": {
+          "$ref": "#/definitions/SuspensionDetails"
+        },
+        "resume_details": {
+          "$ref": "#/definitions/ResumeDetails"
+        },
+        "delegation_details": {
+          "$ref": "#/definitions/DelegationDetails"
+        },
+        "handoff_details": {
+          "$ref": "#/definitions/HandoffDetails"
+        },
         "payload_ref": {
           "$ref": "#/definitions/PayloadRef"
         },
+        "otel_attributes": {
+          "$ref": "#/definitions/OtelAttributes"
+        },
         "redaction_policy_version": {
-          "$ref": "#/definitions/RunfileEvent/properties/schema_version"
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
         },
         "regulatory_scope_version": {
-          "$ref": "#/definitions/RunfileEvent/properties/schema_version"
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
         },
         "anomaly_flags": {
           "type": "array",
@@ -85,29 +237,17 @@
           "maxItems": 32
         },
         "environment": {
-          "type": "string",
-          "enum": [
-            "production",
-            "staging",
-            "development"
-          ]
+          "$ref": "#/definitions/RunfileRun/properties/environment"
         },
         "labels": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "propertyNames": {
-            "pattern": "^[a-z][a-z0-9_]{0,31}$"
-          }
+          "$ref": "#/definitions/RunfileRun/properties/labels"
         },
-        "prev_hash": {
+        "prev_event_hash": {
           "type": "string",
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "event_hash": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         },
         "merkle_inclusion": {
           "$ref": "#/definitions/MerkleInclusion"
@@ -117,7 +257,7 @@
         "schema_version",
         "event_id",
         "tenant_id",
-        "agent_run_id",
+        "run_id",
         "parent_event_id",
         "captured_at",
         "received_at",
@@ -125,12 +265,166 @@
         "sdk",
         "actor",
         "action",
-        "subject",
         "redaction_policy_version",
-        "prev_hash",
+        "prev_event_hash",
         "event_hash"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "llm_call"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "model_ref"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "decision"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_suspend"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "suspension_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_resume"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "resume_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "delegate"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "delegation_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "handoff"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "handoff_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "agent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "agent_identity"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "tool"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "tool_id",
+                  "tool_version_hash"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "Actor": {
       "type": "object",
@@ -145,8 +439,7 @@
           ]
         },
         "agent_identity": {
-          "type": "string",
-          "pattern": "^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$",
+          "$ref": "#/definitions/RunfileRun/properties/agent_identity",
           "description": "DID-format identifier of the agent. Required when type=agent."
         },
         "human_principal": {
@@ -167,7 +460,7 @@
           "pattern": "^tool:[a-z0-9_.-]+:[a-z0-9_.-]+$"
         },
         "tool_version_hash": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         }
       },
       "required": [
@@ -181,17 +474,28 @@
         "kind": {
           "type": "string",
           "enum": [
-            "agent_run_start",
-            "agent_run_end",
             "graph_node_enter",
             "graph_node_exit",
             "llm_call",
+            "llm_call_chunk",
             "tool_call",
             "tool_result",
+            "tool_approval_requested",
+            "tool_approval_granted",
+            "tool_approval_denied",
             "state_read",
             "state_write",
             "decision",
+            "run_create",
+            "run_end",
+            "run_suspend",
+            "run_resume",
+            "run_abandon",
+            "delegate",
             "handoff",
+            "schedule_task",
+            "parallel_group_open",
+            "parallel_group_close",
             "human_approval",
             "human_input",
             "policy_check",
@@ -241,7 +545,8 @@
             "pii",
             "phi",
             "pci",
-            "fci"
+            "fci",
+            "audit_of_audit"
           ]
         },
         "regulatory_tags": {
@@ -276,13 +581,13 @@
           "maxLength": 128
         },
         "model_version_hash": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         },
         "system_prompt_hash": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         },
         "tools_hash": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         },
         "input_tokens": {
           "type": "integer",
@@ -296,6 +601,9 @@
           "type": "number",
           "minimum": 0,
           "maximum": 2
+        },
+        "streaming": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -347,6 +655,192 @@
       ],
       "additionalProperties": false
     },
+    "SuspensionDetails": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "awaiting_human_approval",
+            "awaiting_human_input",
+            "awaiting_webhook",
+            "awaiting_schedule",
+            "awaiting_external_system",
+            "awaiting_subagent",
+            "other"
+          ]
+        },
+        "expected_resumer": {
+          "type": "string"
+        },
+        "expected_resume_by": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "detection_source": {
+          "type": "string",
+          "enum": [
+            "framework_inferred",
+            "customer_explicit",
+            "derived"
+          ]
+        },
+        "framework_signal": {
+          "type": "object",
+          "properties": {
+            "framework": {
+              "type": "string",
+              "enum": [
+                "langgraph",
+                "openai_agents",
+                "claude_agent_sdk",
+                "vercel_ai_sdk",
+                "mcp",
+                "manual",
+                "otel"
+              ]
+            },
+            "signal_name": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "signal_payload_hash": {
+              "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ResumeDetails": {
+      "type": "object",
+      "properties": {
+        "triggered_by": {
+          "type": "string",
+          "enum": [
+            "human_approval_granted",
+            "human_input_received",
+            "webhook_received",
+            "schedule_fired",
+            "external_system_response",
+            "subagent_completed",
+            "manual_resume",
+            "other"
+          ]
+        },
+        "resumer_principal": {
+          "$ref": "#/definitions/Actor/properties/human_principal"
+        },
+        "suspension_duration_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suspension_started_event_id": {
+          "$ref": "#/definitions/RunfileEvent/properties/event_id"
+        }
+      },
+      "required": [
+        "triggered_by"
+      ],
+      "additionalProperties": false
+    },
+    "DelegationDetails": {
+      "type": "object",
+      "properties": {
+        "delegated_run_id": {
+          "$ref": "#/definitions/RunfileRun/properties/run_id"
+        },
+        "delegated_agent_identity": {
+          "$ref": "#/definitions/RunfileRun/properties/agent_identity"
+        },
+        "wait_for_completion": {
+          "type": "boolean"
+        },
+        "framework_signal": {
+          "type": "string",
+          "enum": [
+            "langgraph_subgraph",
+            "openai_agents_as_tool",
+            "claude_agent_sdk_subagent",
+            "manual",
+            "other"
+          ]
+        }
+      },
+      "required": [
+        "delegated_run_id",
+        "delegated_agent_identity"
+      ],
+      "additionalProperties": false
+    },
+    "HandoffDetails": {
+      "type": "object",
+      "properties": {
+        "target_run_id": {
+          "$ref": "#/definitions/RunfileRun/properties/run_id"
+        },
+        "target_agent_identity": {
+          "$ref": "#/definitions/RunfileRun/properties/agent_identity"
+        },
+        "handoff_reason": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "framework_signal": {
+          "type": "string",
+          "enum": [
+            "openai_agents_handoff",
+            "langgraph_explicit",
+            "manual",
+            "other"
+          ]
+        }
+      },
+      "required": [
+        "target_run_id",
+        "target_agent_identity"
+      ],
+      "additionalProperties": false
+    },
+    "SuspensionInterval": {
+      "type": "object",
+      "properties": {
+        "started": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "$ref": "#/definitions/SuspensionDetails/properties/reason"
+        },
+        "trigger_event_id": {
+          "$ref": "#/definitions/RunfileEvent/properties/event_id"
+        },
+        "resume_event_id": {
+          "$ref": "#/definitions/RunfileEvent/properties/event_id"
+        }
+      },
+      "required": [
+        "started",
+        "reason",
+        "trigger_event_id"
+      ],
+      "additionalProperties": false
+    },
     "PayloadRef": {
       "type": "object",
       "properties": {
@@ -356,7 +850,7 @@
           "maxLength": 1024
         },
         "sha256": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         },
         "size_bytes": {
           "type": "integer",
@@ -375,7 +869,8 @@
             "application/vnd.runfile.llm-response+json",
             "application/vnd.runfile.tool-call+json",
             "application/vnd.runfile.tool-result+json",
-            "application/vnd.runfile.state-snapshot+json"
+            "application/vnd.runfile.state-snapshot+json",
+            "application/vnd.runfile.framework-signal+json"
           ]
         },
         "redaction_applied": {
@@ -430,7 +925,80 @@
           "maxItems": 32
         },
         "classifier_version": {
-          "$ref": "#/definitions/RunfileEvent/properties/schema_version"
+          "$ref": "#/definitions/RunfileRun/properties/schema_version"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OtelAttributes": {
+      "type": "object",
+      "properties": {
+        "gen_ai_system": {
+          "type": "string"
+        },
+        "gen_ai_operation_name": {
+          "type": "string"
+        },
+        "gen_ai_provider_name": {
+          "type": "string"
+        },
+        "gen_ai_request_model": {
+          "type": "string"
+        },
+        "gen_ai_response_model": {
+          "type": "string"
+        },
+        "gen_ai_request_temperature": {
+          "type": "number"
+        },
+        "gen_ai_request_top_p": {
+          "type": "number"
+        },
+        "gen_ai_request_max_tokens": {
+          "type": "integer"
+        },
+        "gen_ai_response_id": {
+          "type": "string"
+        },
+        "gen_ai_response_finish_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gen_ai_usage_input_tokens": {
+          "type": "integer"
+        },
+        "gen_ai_usage_output_tokens": {
+          "type": "integer"
+        },
+        "gen_ai_tool_name": {
+          "type": "string"
+        },
+        "gen_ai_tool_call_id": {
+          "type": "string"
+        },
+        "gen_ai_agent_id": {
+          "type": "string"
+        },
+        "gen_ai_agent_name": {
+          "type": "string"
+        },
+        "gen_ai_agent_description": {
+          "type": "string"
+        },
+        "gen_ai_conversation_id": {
+          "type": "string"
+        },
+        "extra": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -450,7 +1018,14 @@
             "policy_threshold_without_hitl",
             "unauthorized_tool_invocation",
             "redaction_policy_mismatch",
-            "schema_version_warning"
+            "schema_version_warning",
+            "agent_identity_mismatch_with_run",
+            "suspension_sla_exceeded",
+            "apparent_crash_detected",
+            "active_duration_exceeds_threshold",
+            "framework_signal_unrecognised",
+            "otel_attribute_missing",
+            "delegation_loop_detected"
           ]
         },
         "severity": {
@@ -496,8 +1071,11 @@
             "openai_agents_js",
             "anthropic_claude",
             "anthropic_claude_js",
+            "claude_agent_sdk",
             "mastra",
             "vercel_ai_sdk",
+            "pydantic_ai",
+            "crewai",
             "mcp_client",
             "otel_generic",
             "manual"
@@ -505,6 +1083,10 @@
         },
         "framework_version": {
           "$ref": "#/definitions/SdkMetadata/properties/version"
+        },
+        "adapter": {
+          "type": "string",
+          "maxLength": 64
         },
         "host": {
           "type": "string",
@@ -515,6 +1097,21 @@
         "name",
         "version",
         "framework"
+      ],
+      "additionalProperties": false
+    },
+    "RunReference": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "$ref": "#/definitions/RunfileRun/properties/run_id"
+        },
+        "event_id": {
+          "$ref": "#/definitions/RunfileEvent/properties/event_id"
+        }
+      },
+      "required": [
+        "run_id"
       ],
       "additionalProperties": false
     },
@@ -530,7 +1127,7 @@
           "minimum": 0
         },
         "merkle_root": {
-          "$ref": "#/definitions/RunfileEvent/properties/prev_hash"
+          "$ref": "#/definitions/RunfileEvent/properties/prev_event_hash"
         }
       },
       "required": [
@@ -543,6 +1140,9 @@
     "_RunfileBundle": {
       "type": "object",
       "properties": {
+        "RunfileRun": {
+          "$ref": "#/definitions/RunfileRun"
+        },
         "RunfileEvent": {
           "$ref": "#/definitions/RunfileEvent"
         },
@@ -561,6 +1161,21 @@
         "Decision": {
           "$ref": "#/definitions/Decision"
         },
+        "SuspensionDetails": {
+          "$ref": "#/definitions/SuspensionDetails"
+        },
+        "ResumeDetails": {
+          "$ref": "#/definitions/ResumeDetails"
+        },
+        "DelegationDetails": {
+          "$ref": "#/definitions/DelegationDetails"
+        },
+        "HandoffDetails": {
+          "$ref": "#/definitions/HandoffDetails"
+        },
+        "SuspensionInterval": {
+          "$ref": "#/definitions/SuspensionInterval"
+        },
         "PayloadRef": {
           "$ref": "#/definitions/PayloadRef"
         },
@@ -570,28 +1185,42 @@
         "RedactionApplied": {
           "$ref": "#/definitions/RedactionApplied"
         },
+        "OtelAttributes": {
+          "$ref": "#/definitions/OtelAttributes"
+        },
         "AnomalyFlag": {
           "$ref": "#/definitions/AnomalyFlag"
         },
         "SdkMetadata": {
           "$ref": "#/definitions/SdkMetadata"
         },
+        "RunReference": {
+          "$ref": "#/definitions/RunReference"
+        },
         "MerkleInclusion": {
           "$ref": "#/definitions/MerkleInclusion"
         }
       },
       "required": [
+        "RunfileRun",
         "RunfileEvent",
         "Actor",
         "Action",
         "Subject",
         "ModelRef",
         "Decision",
+        "SuspensionDetails",
+        "ResumeDetails",
+        "DelegationDetails",
+        "HandoffDetails",
+        "SuspensionInterval",
         "PayloadRef",
         "PayloadEncryption",
         "RedactionApplied",
+        "OtelAttributes",
         "AnomalyFlag",
         "SdkMetadata",
+        "RunReference",
         "MerkleInclusion"
       ],
       "additionalProperties": false

@@ -249,7 +249,23 @@
         "action",
         "reason"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "tombstone_at"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "scheduled_at"
+            ]
+          }
+        }
+      ]
     },
     "LifecycleResponse": {
       "type": "object",

@@ -11,10 +11,23 @@
           "type": "string",
           "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
         },
-        "events": {
+        "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/EventSubmission"
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RunCreateItem"
+              },
+              {
+                "$ref": "#/definitions/RunUpdateItem"
+              },
+              {
+                "$ref": "#/definitions/RunEndItem"
+              },
+              {
+                "$ref": "#/definitions/EventItem"
+              }
+            ]
           },
           "minItems": 1,
           "maxItems": 100
@@ -22,49 +35,194 @@
       },
       "required": [
         "batch_id",
-        "events"
+        "items"
       ],
       "additionalProperties": false
     },
-    "EventSubmission": {
+    "RunCreateItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "run_create"
+        },
+        "run": {
+          "$ref": "#/definitions/RunSubmission"
+        }
+      },
+      "required": [
+        "type",
+        "run"
+      ],
+      "additionalProperties": false
+    },
+    "RunUpdateItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "run_update"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "awaiting_human",
+            "awaiting_webhook",
+            "awaiting_schedule",
+            "ended"
+          ]
+        },
+        "triggered_by_event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        }
+      },
+      "required": [
+        "type",
+        "run_id",
+        "lifecycle_state",
+        "triggered_by_event_id"
+      ],
+      "additionalProperties": false
+    },
+    "RunEndItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "run_end"
+        },
+        "run_id": {
+          "$ref": "#/definitions/RunUpdateItem/properties/run_id"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failure",
+            "incomplete",
+            "abandoned"
+          ]
+        },
+        "final_event_id": {
+          "$ref": "#/definitions/RunUpdateItem/properties/triggered_by_event_id"
+        }
+      },
+      "required": [
+        "type",
+        "run_id",
+        "ended_at",
+        "outcome"
+      ],
+      "additionalProperties": false
+    },
+    "EventItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "event"
+        },
+        "event": {
+          "$ref": "#/definitions/EventSubmission"
+        }
+      },
+      "required": [
+        "type",
+        "event"
+      ],
+      "additionalProperties": false
+    },
+    "RunSubmission": {
       "type": "object",
       "properties": {
         "schema_version": {
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
-        "event_id": {
+        "run_id": {
+          "$ref": "#/definitions/RunUpdateItem/properties/run_id"
+        },
+        "agent_identity": {
           "type": "string",
-          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          "pattern": "^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$"
         },
-        "agent_run_id": {
+        "conversation_id": {
           "type": "string",
-          "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+          "maxLength": 256
         },
-        "parent_event_id": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/EventSubmission/properties/event_id"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "lifecycle_state": {
+          "type": "string",
+          "const": "active"
         },
-        "captured_at": {
+        "started_at": {
           "type": "string",
           "format": "date-time"
         },
-        "wall_clock_source": {
+        "delegated_from": {
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "event_id": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "required": [
+            "run_id"
+          ],
+          "additionalProperties": false
+        },
+        "handed_off_from": {
+          "$ref": "#/definitions/RunSubmission/properties/delegated_from"
+        },
+        "scheduled_from": {
+          "$ref": "#/definitions/RunSubmission/properties/delegated_from"
+        },
+        "invoked_by": {
+          "$ref": "#/definitions/RunSubmission/properties/delegated_from"
+        },
+        "continued_from": {
+          "$ref": "#/definitions/RunSubmission/properties/delegated_from"
+        },
+        "environment": {
           "type": "string",
           "enum": [
-            "aws_time_sync",
-            "ntp",
-            "host_system",
-            "unknown"
+            "production",
+            "staging",
+            "development"
           ]
         },
-        "sdk": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$"
+          },
+          "maxProperties": 16
+        },
+        "redaction_policy_version": {
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
+        },
+        "regulatory_scope_version": {
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
+        },
+        "sdk_at_start": {
           "type": "object",
           "properties": {
             "name": {
@@ -87,15 +245,22 @@
                 "openai_agents_js",
                 "anthropic_claude",
                 "anthropic_claude_js",
+                "claude_agent_sdk",
                 "mastra",
                 "vercel_ai_sdk",
+                "pydantic_ai",
+                "crewai",
                 "mcp_client",
                 "otel_generic",
                 "manual"
               ]
             },
             "framework_version": {
-              "$ref": "#/definitions/EventSubmission/properties/sdk/properties/version"
+              "$ref": "#/definitions/RunSubmission/properties/sdk_at_start/properties/version"
+            },
+            "adapter": {
+              "type": "string",
+              "maxLength": 64
             },
             "host": {
               "type": "string",
@@ -108,6 +273,63 @@
             "framework"
           ],
           "additionalProperties": false
+        },
+        "prev_event_hash_intent": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "agent_identity",
+        "lifecycle_state",
+        "started_at",
+        "redaction_policy_version"
+      ],
+      "additionalProperties": false
+    },
+    "EventSubmission": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
+        },
+        "event_id": {
+          "$ref": "#/definitions/RunUpdateItem/properties/triggered_by_event_id"
+        },
+        "run_id": {
+          "$ref": "#/definitions/RunUpdateItem/properties/run_id"
+        },
+        "parent_event_id": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunUpdateItem/properties/triggered_by_event_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parallel_group_id": {
+          "type": "string",
+          "pattern": "^pg_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "wall_clock_source": {
+          "type": "string",
+          "enum": [
+            "aws_time_sync",
+            "ntp",
+            "host_system",
+            "unknown"
+          ]
+        },
+        "sdk": {
+          "$ref": "#/definitions/RunSubmission/properties/sdk_at_start"
         },
         "actor": {
           "type": "object",
@@ -159,17 +381,28 @@
             "kind": {
               "type": "string",
               "enum": [
-                "agent_run_start",
-                "agent_run_end",
                 "graph_node_enter",
                 "graph_node_exit",
                 "llm_call",
+                "llm_call_chunk",
                 "tool_call",
                 "tool_result",
+                "tool_approval_requested",
+                "tool_approval_granted",
+                "tool_approval_denied",
                 "state_read",
                 "state_write",
                 "decision",
+                "run_create",
+                "run_end",
+                "run_suspend",
+                "run_resume",
+                "run_abandon",
+                "delegate",
                 "handoff",
+                "schedule_task",
+                "parallel_group_open",
+                "parallel_group_close",
                 "human_approval",
                 "human_input",
                 "policy_check",
@@ -219,7 +452,8 @@
                 "pii",
                 "phi",
                 "pci",
-                "fci"
+                "fci",
+                "audit_of_audit"
               ]
             },
             "regulatory_tags": {
@@ -274,6 +508,9 @@
               "type": "number",
               "minimum": 0,
               "maximum": 2
+            },
+            "streaming": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -317,8 +554,7 @@
               "maxItems": 16
             },
             "reversed_by_event": {
-              "type": "string",
-              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              "$ref": "#/definitions/RunSubmission/properties/delegated_from/properties/event_id"
             }
           },
           "required": [
@@ -326,14 +562,238 @@
           ],
           "additionalProperties": false
         },
+        "suspension_details": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "enum": [
+                "awaiting_human_approval",
+                "awaiting_human_input",
+                "awaiting_webhook",
+                "awaiting_schedule",
+                "awaiting_external_system",
+                "awaiting_subagent",
+                "other"
+              ]
+            },
+            "expected_resumer": {
+              "type": "string"
+            },
+            "expected_resume_by": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "detection_source": {
+              "type": "string",
+              "enum": [
+                "framework_inferred",
+                "customer_explicit",
+                "derived"
+              ]
+            },
+            "framework_signal": {
+              "type": "object",
+              "properties": {
+                "framework": {
+                  "type": "string",
+                  "enum": [
+                    "langgraph",
+                    "openai_agents",
+                    "claude_agent_sdk",
+                    "vercel_ai_sdk",
+                    "mcp",
+                    "manual",
+                    "otel"
+                  ]
+                },
+                "signal_name": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "signal_payload_hash": {
+                  "$ref": "#/definitions/EventSubmission/properties/actor/properties/tool_version_hash"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        "resume_details": {
+          "type": "object",
+          "properties": {
+            "triggered_by": {
+              "type": "string",
+              "enum": [
+                "human_approval_granted",
+                "human_input_received",
+                "webhook_received",
+                "schedule_fired",
+                "external_system_response",
+                "subagent_completed",
+                "manual_resume",
+                "other"
+              ]
+            },
+            "resumer_principal": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/human_principal"
+            },
+            "suspension_duration_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "suspension_started_event_id": {
+              "$ref": "#/definitions/RunSubmission/properties/delegated_from/properties/event_id"
+            }
+          },
+          "required": [
+            "triggered_by"
+          ],
+          "additionalProperties": false
+        },
+        "delegation_details": {
+          "type": "object",
+          "properties": {
+            "delegated_run_id": {
+              "$ref": "#/definitions/RunSubmission/properties/delegated_from/properties/run_id"
+            },
+            "delegated_agent_identity": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/agent_identity"
+            },
+            "wait_for_completion": {
+              "type": "boolean"
+            },
+            "framework_signal": {
+              "type": "string",
+              "enum": [
+                "langgraph_subgraph",
+                "openai_agents_as_tool",
+                "claude_agent_sdk_subagent",
+                "manual",
+                "other"
+              ]
+            }
+          },
+          "required": [
+            "delegated_run_id",
+            "delegated_agent_identity"
+          ],
+          "additionalProperties": false
+        },
+        "handoff_details": {
+          "type": "object",
+          "properties": {
+            "target_run_id": {
+              "$ref": "#/definitions/RunSubmission/properties/delegated_from/properties/run_id"
+            },
+            "target_agent_identity": {
+              "$ref": "#/definitions/EventSubmission/properties/actor/properties/agent_identity"
+            },
+            "handoff_reason": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "framework_signal": {
+              "type": "string",
+              "enum": [
+                "openai_agents_handoff",
+                "langgraph_explicit",
+                "manual",
+                "other"
+              ]
+            }
+          },
+          "required": [
+            "target_run_id",
+            "target_agent_identity"
+          ],
+          "additionalProperties": false
+        },
         "payload_ref": {
           "$ref": "#/definitions/PayloadSubmission"
         },
+        "otel_attributes": {
+          "type": "object",
+          "properties": {
+            "gen_ai_system": {
+              "type": "string"
+            },
+            "gen_ai_operation_name": {
+              "type": "string"
+            },
+            "gen_ai_provider_name": {
+              "type": "string"
+            },
+            "gen_ai_request_model": {
+              "type": "string"
+            },
+            "gen_ai_response_model": {
+              "type": "string"
+            },
+            "gen_ai_request_temperature": {
+              "type": "number"
+            },
+            "gen_ai_request_top_p": {
+              "type": "number"
+            },
+            "gen_ai_request_max_tokens": {
+              "type": "integer"
+            },
+            "gen_ai_response_id": {
+              "type": "string"
+            },
+            "gen_ai_response_finish_reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "gen_ai_usage_input_tokens": {
+              "type": "integer"
+            },
+            "gen_ai_usage_output_tokens": {
+              "type": "integer"
+            },
+            "gen_ai_tool_name": {
+              "type": "string"
+            },
+            "gen_ai_tool_call_id": {
+              "type": "string"
+            },
+            "gen_ai_agent_id": {
+              "type": "string"
+            },
+            "gen_ai_agent_name": {
+              "type": "string"
+            },
+            "gen_ai_agent_description": {
+              "type": "string"
+            },
+            "gen_ai_conversation_id": {
+              "type": "string"
+            },
+            "extra": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
         "redaction_policy_version": {
-          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
         },
         "regulatory_scope_version": {
-          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
         },
         "anomaly_flags": {
           "type": "array",
@@ -352,7 +812,14 @@
                   "policy_threshold_without_hitl",
                   "unauthorized_tool_invocation",
                   "redaction_policy_mismatch",
-                  "schema_version_warning"
+                  "schema_version_warning",
+                  "agent_identity_mismatch_with_run",
+                  "suspension_sla_exceeded",
+                  "apparent_crash_detected",
+                  "active_duration_exceeds_threshold",
+                  "framework_signal_unrecognised",
+                  "otel_attribute_missing",
+                  "delegation_loop_detected"
                 ]
               },
               "severity": {
@@ -378,43 +845,184 @@
           "maxItems": 32
         },
         "environment": {
-          "type": "string",
-          "enum": [
-            "production",
-            "staging",
-            "development"
-          ]
+          "$ref": "#/definitions/RunSubmission/properties/environment"
         },
         "labels": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "propertyNames": {
-            "pattern": "^[a-z][a-z0-9_]{0,31}$"
-          }
+          "$ref": "#/definitions/RunSubmission/properties/labels"
         },
-        "prev_hash_intent": {
-          "type": "string",
-          "pattern": "^sha256:[a-f0-9]{64}$"
+        "prev_event_hash_intent": {
+          "$ref": "#/definitions/RunSubmission/properties/prev_event_hash_intent"
         }
       },
       "required": [
         "schema_version",
         "event_id",
-        "agent_run_id",
+        "run_id",
         "parent_event_id",
         "captured_at",
         "wall_clock_source",
         "sdk",
         "actor",
         "action",
-        "subject",
         "redaction_policy_version",
-        "prev_hash_intent"
+        "prev_event_hash_intent"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "llm_call"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "model_ref"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "decision"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_suspend"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "suspension_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_resume"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "resume_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "delegate"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "delegation_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "handoff"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "handoff_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "agent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "agent_identity"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "tool"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "tool_id",
+                  "tool_version_hash"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "PayloadSubmission": {
       "type": "object",
@@ -424,7 +1032,7 @@
           "maxLength": 1024
         },
         "sha256": {
-          "$ref": "#/definitions/EventSubmission/properties/prev_hash_intent"
+          "$ref": "#/definitions/RunSubmission/properties/prev_event_hash_intent"
         },
         "size_bytes": {
           "type": "integer",
@@ -462,7 +1070,8 @@
             "application/vnd.runfile.llm-response+json",
             "application/vnd.runfile.tool-call+json",
             "application/vnd.runfile.tool-result+json",
-            "application/vnd.runfile.state-snapshot+json"
+            "application/vnd.runfile.state-snapshot+json",
+            "application/vnd.runfile.framework-signal+json"
           ]
         },
         "redaction_applied": {
@@ -506,17 +1115,16 @@
       "type": "object",
       "properties": {
         "batch_id": {
-          "type": "string",
-          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+          "$ref": "#/definitions/BatchSubmission/properties/batch_id"
         },
         "accepted_count": {
           "type": "integer",
           "minimum": 1
         },
-        "accepted_events": {
+        "accepted_items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AcceptedEvent"
+            "$ref": "#/definitions/AcceptedItem"
           }
         },
         "received_at": {
@@ -527,7 +1135,7 @@
       "required": [
         "batch_id",
         "accepted_count",
-        "accepted_events",
+        "accepted_items",
         "received_at"
       ],
       "additionalProperties": false
@@ -536,8 +1144,7 @@
       "type": "object",
       "properties": {
         "batch_id": {
-          "type": "string",
-          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+          "$ref": "#/definitions/BatchSubmission/properties/batch_id"
         },
         "accepted_count": {
           "type": "integer",
@@ -547,16 +1154,16 @@
           "type": "integer",
           "minimum": 1
         },
-        "accepted_events": {
+        "accepted_items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AcceptedEvent"
+            "$ref": "#/definitions/AcceptedItem"
           }
         },
-        "rejected_events": {
+        "rejected_items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/EventRejection"
+            "$ref": "#/definitions/RejectedItem"
           }
         },
         "received_at": {
@@ -568,8 +1175,8 @@
         "batch_id",
         "accepted_count",
         "rejected_count",
-        "accepted_events",
-        "rejected_events",
+        "accepted_items",
+        "rejected_items",
         "received_at"
       ],
       "additionalProperties": false
@@ -578,31 +1185,39 @@
       "type": "object",
       "properties": {
         "batch_id": {
-          "type": "string",
-          "pattern": "^b_[0-9A-HJKMNP-TV-Z]{26}$"
+          "$ref": "#/definitions/BatchSubmission/properties/batch_id"
         },
         "error": {
           "$ref": "#/definitions/IngestError"
         },
-        "rejected_events": {
+        "rejected_items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/EventRejection"
+            "$ref": "#/definitions/RejectedItem"
           }
         }
       },
       "required": [
         "batch_id",
         "error",
-        "rejected_events"
+        "rejected_items"
       ],
       "additionalProperties": false
     },
-    "AcceptedEvent": {
+    "AcceptedItem": {
       "type": "object",
       "properties": {
-        "event_id": {
-          "$ref": "#/definitions/EventSubmission/properties/event_id"
+        "type": {
+          "type": "string",
+          "enum": [
+            "run_create",
+            "run_update",
+            "run_end",
+            "event"
+          ]
+        },
+        "id": {
+          "type": "string"
         },
         "accepted_at": {
           "type": "string",
@@ -617,23 +1232,30 @@
         }
       },
       "required": [
-        "event_id",
-        "accepted_at",
-        "payload_s3_uri"
+        "type",
+        "id",
+        "accepted_at"
       ],
       "additionalProperties": false
     },
-    "EventRejection": {
+    "RejectedItem": {
       "type": "object",
       "properties": {
-        "event_id": {
+        "type": {
+          "$ref": "#/definitions/AcceptedItem/properties/type"
+        },
+        "id": {
           "type": "string"
         },
         "error_code": {
           "type": "string",
           "enum": [
             "schema_validation_failed",
-            "duplicate_event_id",
+            "duplicate_id",
+            "run_not_found",
+            "run_already_ended",
+            "run_lifecycle_transition_invalid",
+            "agent_identity_mismatch_with_run",
             "payload_too_large",
             "payload_sha256_mismatch",
             "kms_key_unknown",
@@ -654,7 +1276,8 @@
         }
       },
       "required": [
-        "event_id",
+        "type",
+        "id",
         "error_code",
         "error_message"
       ],
@@ -700,7 +1323,7 @@
       "type": "object",
       "properties": {
         "policy_version": {
-          "$ref": "#/definitions/EventSubmission/properties/schema_version"
+          "$ref": "#/definitions/RunSubmission/properties/schema_version"
         },
         "classification_rules": {
           "type": "array",
@@ -713,9 +1336,11 @@
               "treatment": {
                 "type": "string",
                 "enum": [
-                  "redact",
+                  "drop",
                   "tokenize",
-                  "encrypt"
+                  "hash",
+                  "pass_through",
+                  "tokenize_with_fallback"
                 ]
               },
               "detector": {
@@ -754,6 +1379,21 @@
         "BatchSubmission": {
           "$ref": "#/definitions/BatchSubmission"
         },
+        "RunCreateItem": {
+          "$ref": "#/definitions/RunCreateItem"
+        },
+        "RunUpdateItem": {
+          "$ref": "#/definitions/RunUpdateItem"
+        },
+        "RunEndItem": {
+          "$ref": "#/definitions/RunEndItem"
+        },
+        "EventItem": {
+          "$ref": "#/definitions/EventItem"
+        },
+        "RunSubmission": {
+          "$ref": "#/definitions/RunSubmission"
+        },
         "EventSubmission": {
           "$ref": "#/definitions/EventSubmission"
         },
@@ -769,11 +1409,11 @@
         "BatchRejected": {
           "$ref": "#/definitions/BatchRejected"
         },
-        "AcceptedEvent": {
-          "$ref": "#/definitions/AcceptedEvent"
+        "AcceptedItem": {
+          "$ref": "#/definitions/AcceptedItem"
         },
-        "EventRejection": {
-          "$ref": "#/definitions/EventRejection"
+        "RejectedItem": {
+          "$ref": "#/definitions/RejectedItem"
         },
         "IngestError": {
           "$ref": "#/definitions/IngestError"
@@ -784,13 +1424,18 @@
       },
       "required": [
         "BatchSubmission",
+        "RunCreateItem",
+        "RunUpdateItem",
+        "RunEndItem",
+        "EventItem",
+        "RunSubmission",
         "EventSubmission",
         "PayloadSubmission",
         "BatchAccepted",
         "BatchPartial",
         "BatchRejected",
-        "AcceptedEvent",
-        "EventRejection",
+        "AcceptedItem",
+        "RejectedItem",
         "IngestError",
         "RedactionPolicy"
       ],
