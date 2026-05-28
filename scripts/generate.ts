@@ -346,6 +346,86 @@ const CONDITIONAL_RULES: ConditionalRule[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// JSON Schema conditional-required rules + labels cap
+// ---------------------------------------------------------------------------
+//
+// zod-to-json-schema (Step 1), like the Python/Go codegen tools, emits per-field
+// constraints but drops Zod's cross-field `.superRefine(...)` rules and the
+// `labels` `.refine(len<=16)` cap. We re-inject those into the published JSON
+// Schema (Step 3.6) so it validates as strictly as the Zod source and the
+// hand-written reference in private/v2/event-schema.json. This mirrors
+// CONDITIONAL_RULES (which does the same for Python/Go); keep all of them in
+// sync with src/*.ts.
+//
+// Injected AFTER Steps 2 and 3 so datamodel-codegen / quicktype consume the
+// plain schema (their conditionals come from CONDITIONAL_RULES via Step 3.5).
+interface JsonSchemaConditional {
+  domain: string; // which generated/json-schema/<domain>.json file
+  definition: string; // definition the if/then entry attaches to
+  whenPath: string[]; // path to the discriminant property (relative to the instance)
+  equals: string; // discriminant value that triggers the requirement
+  requirePath: string[]; // path to the object that gains `required` ([] = the root object)
+  requireFields: string[]; // fields that become required
+}
+
+const JSON_SCHEMA_CONDITIONALS: JsonSchemaConditional[] = [
+  // RunfileEvent — mirrors RunfileEventSchema.superRefine + shared ActorSchema (src/event.ts)
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'llm_call', requirePath: [], requireFields: ['model_ref'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'decision', requirePath: [], requireFields: ['decision'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'run_suspend', requirePath: [], requireFields: ['suspension_details'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'run_resume', requirePath: [], requireFields: ['resume_details'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'delegate', requirePath: [], requireFields: ['delegation_details'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['action', 'kind'], equals: 'handoff', requirePath: [], requireFields: ['handoff_details'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['actor', 'type'], equals: 'agent', requirePath: ['actor'], requireFields: ['agent_identity'] },
+  { domain: 'event', definition: 'RunfileEvent', whenPath: ['actor', 'type'], equals: 'tool', requirePath: ['actor'], requireFields: ['tool_id', 'tool_version_hash'] },
+  // EventSubmission (ingest envelope) — mirrors EventSubmissionSchema.superRefine + shared ActorSchema (src/ingest.ts)
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'llm_call', requirePath: [], requireFields: ['model_ref'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'decision', requirePath: [], requireFields: ['decision'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'run_suspend', requirePath: [], requireFields: ['suspension_details'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'run_resume', requirePath: [], requireFields: ['resume_details'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'delegate', requirePath: [], requireFields: ['delegation_details'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['action', 'kind'], equals: 'handoff', requirePath: [], requireFields: ['handoff_details'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['actor', 'type'], equals: 'agent', requirePath: ['actor'], requireFields: ['agent_identity'] },
+  { domain: 'ingest', definition: 'EventSubmission', whenPath: ['actor', 'type'], equals: 'tool', requirePath: ['actor'], requireFields: ['tool_id', 'tool_version_hash'] },
+  // LifecycleRequest (vault) — mirrors LifecycleRequestSchema.superRefine (src/vault.ts)
+  { domain: 'vault', definition: 'LifecycleRequest', whenPath: ['action'], equals: 'tombstone_at', requirePath: [], requireFields: ['scheduled_at'] },
+];
+
+/** Labels key pattern (LabelsSchema in src/event.ts) and the max-key cap that
+ *  Zod's `.refine` enforces but zod-to-json-schema can't serialize. */
+const LABEL_KEY_PATTERN = '^[a-z][a-z0-9_]{0,31}$';
+const MAX_LABELS = 16;
+
+/** Build a JSON Schema draft if/then entry for one conditional-required rule. */
+function buildConditionalAllOf(c: JsonSchemaConditional): Record<string, unknown> {
+  let ifSchema: Record<string, unknown> = { const: c.equals };
+  for (let i = c.whenPath.length - 1; i >= 0; i--) {
+    ifSchema = { properties: { [c.whenPath[i]!]: ifSchema } };
+  }
+  let thenSchema: Record<string, unknown> = { required: c.requireFields };
+  for (let i = c.requirePath.length - 1; i >= 0; i--) {
+    thenSchema = { properties: { [c.requirePath[i]!]: thenSchema } };
+  }
+  return { if: ifSchema, then: thenSchema };
+}
+
+/** Recursively add `maxProperties` to every labels-shaped object. */
+function injectLabelsMaxProperties(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const item of node) injectLabelsMaxProperties(item);
+    return;
+  }
+  if (node && typeof node === 'object') {
+    const obj = node as Record<string, unknown>;
+    const pn = obj.propertyNames as Record<string, unknown> | undefined;
+    if (obj.type === 'object' && pn && pn.pattern === LABEL_KEY_PATTERN) {
+      obj.maxProperties = MAX_LABELS;
+    }
+    for (const value of Object.values(obj)) injectLabelsMaxProperties(value);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Step 1
 // ---------------------------------------------------------------------------
 
@@ -635,6 +715,32 @@ function step3_5InjectGoValidators(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Step 3.6: inject cross-field conditionals + labels cap into JSON Schema files
+// ---------------------------------------------------------------------------
+
+function step3_6InjectJsonSchemaConstraints(): void {
+  for (const bundle of bundles) {
+    const path = resolve(SCHEMA_DIR, `${bundle.domain}.json`);
+    const document = JSON.parse(readFileSync(path, 'utf8')) as {
+      definitions?: Record<string, { allOf?: unknown[] }>;
+    };
+    const defs = document.definitions ?? {};
+
+    for (const c of JSON_SCHEMA_CONDITIONALS) {
+      if (c.domain !== bundle.domain) continue;
+      const def = defs[c.definition];
+      if (!def) throw new Error(`JSON Schema conditional target ${c.domain}/${c.definition} not found`);
+      (def.allOf ??= []).push(buildConditionalAllOf(c));
+    }
+
+    injectLabelsMaxProperties(document);
+
+    writeFileSync(path, `${JSON.stringify(document, null, 2)}\n`);
+    console.log(`  decorated generated/json-schema/${bundle.domain}.json`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Step 4
 // ---------------------------------------------------------------------------
 
@@ -722,6 +828,9 @@ for (const bundle of bundles) {
 console.log('\nStep 3.5: inject cross-field validators (Python + Go)');
 step3_5InjectPythonValidators();
 step3_5InjectGoValidators();
+
+console.log('\nStep 3.6: inject JSON Schema conditionals + labels cap');
+step3_6InjectJsonSchemaConstraints();
 
 console.log('\nStep 4: static infrastructure');
 writeStaticInfra();

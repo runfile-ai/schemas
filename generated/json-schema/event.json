@@ -110,7 +110,8 @@
           },
           "propertyNames": {
             "pattern": "^[a-z][a-z0-9_]{0,31}$"
-          }
+          },
+          "maxProperties": 16
         },
         "redaction_policy_version": {
           "$ref": "#/definitions/RunfileRun/properties/schema_version"
@@ -268,7 +269,162 @@
         "prev_event_hash",
         "event_hash"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "llm_call"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "model_ref"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "decision"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_suspend"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "suspension_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "run_resume"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "resume_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "delegate"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "delegation_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "properties": {
+                  "kind": {
+                    "const": "handoff"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "handoff_details"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "agent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "agent_identity"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actor": {
+                "properties": {
+                  "type": {
+                    "const": "tool"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actor": {
+                "required": [
+                  "tool_id",
+                  "tool_version_hash"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "Actor": {
       "type": "object",

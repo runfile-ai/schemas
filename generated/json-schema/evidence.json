@@ -758,7 +758,8 @@
                 },
                 "propertyNames": {
                   "pattern": "^[a-z][a-z0-9_]{0,31}$"
-                }
+                },
+                "maxProperties": 16
               },
               "prev_event_hash": {
                 "$ref": "#/definitions/EvidenceBundle/properties/events/items/properties/actor/properties/tool_version_hash"
