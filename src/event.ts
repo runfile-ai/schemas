@@ -294,10 +294,8 @@ export const PayloadEncryptionSchema = z
   .object({
     algorithm: z.literal('aes-256-gcm'),
     data_key_wrapped: z.string().max(4096),
-    kms_key_arn: z
-      .string()
-      .regex(/^arn:aws:kms:[a-z0-9-]+:[0-9]+:key\/[a-f0-9-]+$/)
-      .optional(),
+    key_id: z.string().max(256).optional(),
+    nonce: z.string().max(64),
   })
   .strict();
 export type PayloadEncryption = z.infer<typeof PayloadEncryptionSchema>;
