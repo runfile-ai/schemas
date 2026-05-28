@@ -9,11 +9,43 @@ from typing import Any, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel, constr, model_validator
 
 
-class WallClockSource(Enum):
-    aws_time_sync = 'aws_time_sync'
-    ntp = 'ntp'
-    host_system = 'host_system'
-    unknown = 'unknown'
+class LifecycleState(Enum):
+    active = 'active'
+    awaiting_human = 'awaiting_human'
+    awaiting_webhook = 'awaiting_webhook'
+    awaiting_schedule = 'awaiting_schedule'
+    ended = 'ended'
+
+
+class RunUpdateItem(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    type: Literal['run_update']
+    run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
+    lifecycle_state: LifecycleState
+    triggered_by_event_id: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class Outcome(Enum):
+    success = 'success'
+    failure = 'failure'
+    incomplete = 'incomplete'
+    abandoned = 'abandoned'
+
+
+class DelegatedFrom(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
+    event_id: str | None = Field(None, pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class Environment(Enum):
+    production = 'production'
+    staging = 'staging'
+    development = 'development'
 
 
 class Name(Enum):
@@ -28,11 +60,21 @@ class Framework(Enum):
     openai_agents_js = 'openai_agents_js'
     anthropic_claude = 'anthropic_claude'
     anthropic_claude_js = 'anthropic_claude_js'
+    claude_agent_sdk = 'claude_agent_sdk'
     mastra = 'mastra'
     vercel_ai_sdk = 'vercel_ai_sdk'
+    pydantic_ai = 'pydantic_ai'
+    crewai = 'crewai'
     mcp_client = 'mcp_client'
     otel_generic = 'otel_generic'
     manual = 'manual'
+
+
+class WallClockSource(Enum):
+    aws_time_sync = 'aws_time_sync'
+    ntp = 'ntp'
+    host_system = 'host_system'
+    unknown = 'unknown'
 
 
 class Type(Enum):
@@ -73,17 +115,28 @@ class Actor(BaseModel):
 
 
 class Kind(Enum):
-    agent_run_start = 'agent_run_start'
-    agent_run_end = 'agent_run_end'
     graph_node_enter = 'graph_node_enter'
     graph_node_exit = 'graph_node_exit'
     llm_call = 'llm_call'
+    llm_call_chunk = 'llm_call_chunk'
     tool_call = 'tool_call'
     tool_result = 'tool_result'
+    tool_approval_requested = 'tool_approval_requested'
+    tool_approval_granted = 'tool_approval_granted'
+    tool_approval_denied = 'tool_approval_denied'
     state_read = 'state_read'
     state_write = 'state_write'
     decision = 'decision'
+    run_create = 'run_create'
+    run_end = 'run_end'
+    run_suspend = 'run_suspend'
+    run_resume = 'run_resume'
+    run_abandon = 'run_abandon'
+    delegate = 'delegate'
     handoff = 'handoff'
+    schedule_task = 'schedule_task'
+    parallel_group_open = 'parallel_group_open'
+    parallel_group_close = 'parallel_group_close'
     human_approval = 'human_approval'
     human_input = 'human_input'
     policy_check = 'policy_check'
@@ -91,7 +144,7 @@ class Kind(Enum):
     sdk_diagnostic = 'sdk_diagnostic'
 
 
-class Outcome(Enum):
+class Outcome1(Enum):
     success = 'success'
     failure = 'failure'
     partial = 'partial'
@@ -105,7 +158,7 @@ class Action(BaseModel):
     )
     kind: Kind
     name: str = Field(..., max_length=256)
-    outcome: Outcome | None = None
+    outcome: Outcome1 | None = None
     duration_ms: int | None = Field(None, ge=0)
 
 
@@ -117,6 +170,7 @@ class DataClassification(Enum):
     phi = 'phi'
     pci = 'pci'
     fci = 'fci'
+    audit_of_audit = 'audit_of_audit'
 
 
 class RegulatoryTag(RootModel[str]):
@@ -145,7 +199,7 @@ class Provider(Enum):
     other = 'other'
 
 
-class Outcome1(Enum):
+class Outcome2(Enum):
     approved = 'approved'
     denied = 'denied'
     escalated = 'escalated'
@@ -158,18 +212,81 @@ class PolicyThresholdsCrossedItem(RootModel[str]):
     root: str = Field(..., max_length=64)
 
 
-class Decision(BaseModel):
+class Reason(Enum):
+    awaiting_human_approval = 'awaiting_human_approval'
+    awaiting_human_input = 'awaiting_human_input'
+    awaiting_webhook = 'awaiting_webhook'
+    awaiting_schedule = 'awaiting_schedule'
+    awaiting_external_system = 'awaiting_external_system'
+    awaiting_subagent = 'awaiting_subagent'
+    other = 'other'
+
+
+class DetectionSource(Enum):
+    framework_inferred = 'framework_inferred'
+    customer_explicit = 'customer_explicit'
+    derived = 'derived'
+
+
+class Framework1(Enum):
+    langgraph = 'langgraph'
+    openai_agents = 'openai_agents'
+    claude_agent_sdk = 'claude_agent_sdk'
+    vercel_ai_sdk = 'vercel_ai_sdk'
+    mcp = 'mcp'
+    manual = 'manual'
+    otel = 'otel'
+
+
+class TriggeredBy(Enum):
+    human_approval_granted = 'human_approval_granted'
+    human_input_received = 'human_input_received'
+    webhook_received = 'webhook_received'
+    schedule_fired = 'schedule_fired'
+    external_system_response = 'external_system_response'
+    subagent_completed = 'subagent_completed'
+    manual_resume = 'manual_resume'
+    other = 'other'
+
+
+class FrameworkSignal1(Enum):
+    langgraph_subgraph = 'langgraph_subgraph'
+    openai_agents_as_tool = 'openai_agents_as_tool'
+    claude_agent_sdk_subagent = 'claude_agent_sdk_subagent'
+    manual = 'manual'
+    other = 'other'
+
+
+class FrameworkSignal2(Enum):
+    openai_agents_handoff = 'openai_agents_handoff'
+    langgraph_explicit = 'langgraph_explicit'
+    manual = 'manual'
+    other = 'other'
+
+
+class OtelAttributes(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    outcome: Outcome1
-    outcome_label: str | None = Field(None, max_length=64)
-    confidence: float | None = Field(None, ge=0.0, le=1.0)
-    human_in_the_loop: bool | None = None
-    policy_thresholds_crossed: list[PolicyThresholdsCrossedItem] | None = Field(
-        None, max_length=16
-    )
-    reversed_by_event: str | None = Field(None, pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
+    gen_ai_system: str | None = None
+    gen_ai_operation_name: str | None = None
+    gen_ai_provider_name: str | None = None
+    gen_ai_request_model: str | None = None
+    gen_ai_response_model: str | None = None
+    gen_ai_request_temperature: float | None = None
+    gen_ai_request_top_p: float | None = None
+    gen_ai_request_max_tokens: int | None = None
+    gen_ai_response_id: str | None = None
+    gen_ai_response_finish_reasons: list[str] | None = None
+    gen_ai_usage_input_tokens: int | None = None
+    gen_ai_usage_output_tokens: int | None = None
+    gen_ai_tool_name: str | None = None
+    gen_ai_tool_call_id: str | None = None
+    gen_ai_agent_id: str | None = None
+    gen_ai_agent_name: str | None = None
+    gen_ai_agent_description: str | None = None
+    gen_ai_conversation_id: str | None = None
+    extra: dict[str, str | float | bool] | None = None
 
 
 class Code(Enum):
@@ -183,6 +300,13 @@ class Code(Enum):
     unauthorized_tool_invocation = 'unauthorized_tool_invocation'
     redaction_policy_mismatch = 'redaction_policy_mismatch'
     schema_version_warning = 'schema_version_warning'
+    agent_identity_mismatch_with_run = 'agent_identity_mismatch_with_run'
+    suspension_sla_exceeded = 'suspension_sla_exceeded'
+    apparent_crash_detected = 'apparent_crash_detected'
+    active_duration_exceeds_threshold = 'active_duration_exceeds_threshold'
+    framework_signal_unrecognised = 'framework_signal_unrecognised'
+    otel_attribute_missing = 'otel_attribute_missing'
+    delegation_loop_detected = 'delegation_loop_detected'
 
 
 class Severity(Enum):
@@ -199,12 +323,6 @@ class AnomalyFlag(BaseModel):
     code: Code
     severity: Severity
     detail: str | None = Field(None, max_length=1024)
-
-
-class Environment(Enum):
-    production = 'production'
-    staging = 'staging'
-    development = 'development'
 
 
 class Encryption(BaseModel):
@@ -234,6 +352,9 @@ class ContentType(Enum):
     application_vnd_runfile_state_snapshot_json = (
         'application/vnd.runfile.state-snapshot+json'
     )
+    application_vnd_runfile_framework_signal_json = (
+        'application/vnd.runfile.framework-signal+json'
+    )
 
 
 class RedactionApplied(BaseModel):
@@ -245,9 +366,31 @@ class RedactionApplied(BaseModel):
     classifier_version: str | None = Field(None, pattern='^\\d+\\.\\d+\\.\\d+$')
 
 
+class Type1(Enum):
+    run_create = 'run_create'
+    run_update = 'run_update'
+    run_end = 'run_end'
+    event = 'event'
+
+
+class AcceptedItem(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    type: Type1
+    id: str
+    accepted_at: AwareDatetime
+    payload_s3_uri: str | None = None
+    processing_status: Literal['queued'] = 'queued'
+
+
 class ErrorCode(Enum):
     schema_validation_failed = 'schema_validation_failed'
-    duplicate_event_id = 'duplicate_event_id'
+    duplicate_id = 'duplicate_id'
+    run_not_found = 'run_not_found'
+    run_already_ended = 'run_already_ended'
+    run_lifecycle_transition_invalid = 'run_lifecycle_transition_invalid'
+    agent_identity_mismatch_with_run = 'agent_identity_mismatch_with_run'
     payload_too_large = 'payload_too_large'
     payload_sha256_mismatch = 'payload_sha256_mismatch'
     kms_key_unknown = 'kms_key_unknown'
@@ -257,16 +400,6 @@ class ErrorCode(Enum):
     region_scope_violation = 'region_scope_violation'
     timestamp_out_of_range = 'timestamp_out_of_range'
     missing_required_conditional_field = 'missing_required_conditional_field'
-
-
-class EventRejection(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    event_id: str
-    error_code: ErrorCode
-    error_message: str = Field(..., max_length=1024)
-    field_path: str | None = None
 
 
 class ErrorCode1(Enum):
@@ -293,9 +426,11 @@ class IngestError(BaseModel):
 
 
 class Treatment(Enum):
-    redact = 'redact'
+    drop = 'drop'
     tokenize = 'tokenize'
-    encrypt = 'encrypt'
+    hash = 'hash'
+    pass_through = 'pass_through'
+    tokenize_with_fallback = 'tokenize_with_fallback'
 
 
 class ClassificationRule(BaseModel):
@@ -307,6 +442,26 @@ class ClassificationRule(BaseModel):
     detector: dict[str, Any] | None = None
 
 
+class BatchId(RootModel[str]):
+    root: str = Field(..., pattern='^b_[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class AgentIdentity(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='DID-format identifier of the agent. Required when type=agent.',
+        pattern='^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$',
+    )
+
+
+class HumanPrincipal(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='Vault token identifying the human principal.',
+        pattern='^tok_[A-Za-z0-9]{16,64}$',
+    )
+
+
 class ToolVersionHash(RootModel[str]):
     root: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
 
@@ -315,7 +470,15 @@ class EventId(RootModel[str]):
     root: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
 
 
-class PrevHashIntent(RootModel[str]):
+class RunId(RootModel[str]):
+    root: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class Labels(RootModel[dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]]):
+    root: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]
+
+
+class PrevEventHashIntent(RootModel[str]):
     root: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
 
 
@@ -323,11 +486,43 @@ class SchemaVersion(RootModel[str]):
     root: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
 
 
+class Framework2(Enum):
+    langgraph = 'langgraph'
+    langgraph_js = 'langgraph_js'
+    openai_agents = 'openai_agents'
+    openai_agents_js = 'openai_agents_js'
+    anthropic_claude = 'anthropic_claude'
+    anthropic_claude_js = 'anthropic_claude_js'
+    claude_agent_sdk = 'claude_agent_sdk'
+    mastra = 'mastra'
+    vercel_ai_sdk = 'vercel_ai_sdk'
+    pydantic_ai = 'pydantic_ai'
+    crewai = 'crewai'
+    mcp_client = 'mcp_client'
+    otel_generic = 'otel_generic'
+    manual = 'manual'
+
+
 class Version(RootModel[str]):
     root: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$')
 
 
-class Sdk(BaseModel):
+class TriggeredByEventId(RootModel[str]):
+    root: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class RunEndItem(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    type: Literal['run_end']
+    run_id: RunId
+    ended_at: AwareDatetime
+    outcome: Outcome
+    final_event_id: TriggeredByEventId | None = None
+
+
+class SdkAtStart(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
@@ -335,7 +530,31 @@ class Sdk(BaseModel):
     version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$')
     framework: Framework
     framework_version: Version | None = None
+    adapter: str | None = Field(None, max_length=64)
     host: str | None = Field(None, max_length=256)
+
+
+class RunSubmission(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    schema_version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
+    run_id: RunId
+    agent_identity: str = Field(..., pattern='^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$')
+    conversation_id: str | None = Field(None, max_length=256)
+    lifecycle_state: Literal['active']
+    started_at: AwareDatetime
+    delegated_from: DelegatedFrom | None = None
+    handed_off_from: DelegatedFrom | None = None
+    scheduled_from: DelegatedFrom | None = None
+    invoked_by: DelegatedFrom | None = None
+    continued_from: DelegatedFrom | None = None
+    environment: Environment | None = None
+    labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
+    redaction_policy_version: SchemaVersion
+    regulatory_scope_version: SchemaVersion | None = None
+    sdk_at_start: SdkAtStart | None = None
+    prev_event_hash_intent: str | None = Field(None, pattern='^sha256:[a-f0-9]{64}$')
 
 
 class ModelRef(BaseModel):
@@ -350,6 +569,71 @@ class ModelRef(BaseModel):
     input_tokens: int | None = Field(None, ge=0)
     output_tokens: int | None = Field(None, ge=0)
     temperature: float | None = Field(None, ge=0.0, le=2.0)
+    streaming: bool | None = None
+
+
+class Decision(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    outcome: Outcome2
+    outcome_label: str | None = Field(None, max_length=64)
+    confidence: float | None = Field(None, ge=0.0, le=1.0)
+    human_in_the_loop: bool | None = None
+    policy_thresholds_crossed: list[PolicyThresholdsCrossedItem] | None = Field(
+        None, max_length=16
+    )
+    reversed_by_event: EventId | None = None
+
+
+class FrameworkSignal(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    framework: Framework1 | None = None
+    signal_name: str | None = Field(None, max_length=128)
+    signal_payload_hash: ToolVersionHash | None = None
+
+
+class SuspensionDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    reason: Reason
+    expected_resumer: str | None = None
+    expected_resume_by: AwareDatetime | None = None
+    detection_source: DetectionSource | None = None
+    framework_signal: FrameworkSignal | None = None
+
+
+class ResumeDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    triggered_by: TriggeredBy
+    resumer_principal: HumanPrincipal | None = None
+    suspension_duration_seconds: int | None = Field(None, ge=0)
+    suspension_started_event_id: EventId | None = None
+
+
+class DelegationDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    delegated_run_id: RunId
+    delegated_agent_identity: AgentIdentity
+    wait_for_completion: bool | None = None
+    framework_signal: FrameworkSignal1 | None = None
+
+
+class HandoffDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    target_run_id: RunId
+    target_agent_identity: AgentIdentity
+    handoff_reason: str | None = Field(None, max_length=256)
+    framework_signal: FrameworkSignal2 | None = None
 
 
 class PayloadSubmission(BaseModel):
@@ -357,7 +641,7 @@ class PayloadSubmission(BaseModel):
         extra='forbid',
     )
     s3_uri_intent: str | None = Field(None, max_length=1024)
-    sha256: PrevHashIntent
+    sha256: PrevEventHashIntent
     size_bytes: int = Field(..., ge=0, le=67108864)
     encryption: Encryption
     content_type: ContentType | None = None
@@ -365,23 +649,25 @@ class PayloadSubmission(BaseModel):
     ciphertext_base64: str = Field(..., max_length=7340032)
 
 
-class BatchRejected(BaseModel):
+class BatchAccepted(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    batch_id: str = Field(..., pattern='^b_[0-9A-HJKMNP-TV-Z]{26}$')
-    error: IngestError
-    rejected_events: list[EventRejection]
+    batch_id: BatchId
+    accepted_count: int = Field(..., ge=1)
+    accepted_items: list[AcceptedItem]
+    received_at: AwareDatetime
 
 
-class AcceptedEvent(BaseModel):
+class RejectedItem(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    event_id: EventId
-    accepted_at: AwareDatetime
-    payload_s3_uri: str
-    processing_status: Literal['queued'] = 'queued'
+    type: Type1
+    id: str
+    error_code: ErrorCode
+    error_message: str = Field(..., max_length=1024)
+    field_path: str | None = None
 
 
 class RedactionPolicy(BaseModel):
@@ -394,29 +680,55 @@ class RedactionPolicy(BaseModel):
     ttl_seconds: int | None = Field(300, gt=0)
 
 
+class SdkAtStartModel(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: Name
+    version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$')
+    framework: Framework2
+    framework_version: Version | None = None
+    adapter: str | None = Field(None, max_length=64)
+    host: str | None = Field(None, max_length=256)
+
+
+class RunCreateItem(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    type: Literal['run_create']
+    run: RunSubmission
+
+
 class EventSubmission(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    schema_version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
-    event_id: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
-    agent_run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
-    parent_event_id: EventId | None
+    schema_version: SchemaVersion
+    event_id: TriggeredByEventId
+    run_id: RunId
+    parent_event_id: TriggeredByEventId | None
+    parallel_group_id: str | None = Field(None, pattern='^pg_[0-9A-HJKMNP-TV-Z]{26}$')
     captured_at: AwareDatetime
     wall_clock_source: WallClockSource
-    sdk: Sdk
+    sdk: SdkAtStartModel
     actor: Actor
     action: Action
-    subject: Subject
+    subject: Subject | None = None
     model_ref: ModelRef | None = None
     decision: Decision | None = None
+    suspension_details: SuspensionDetails | None = None
+    resume_details: ResumeDetails | None = None
+    delegation_details: DelegationDetails | None = None
+    handoff_details: HandoffDetails | None = None
     payload_ref: PayloadSubmission | None = None
+    otel_attributes: OtelAttributes | None = None
     redaction_policy_version: SchemaVersion
     regulatory_scope_version: SchemaVersion | None = None
     anomaly_flags: list[AnomalyFlag] | None = Field(None, max_length=32)
     environment: Environment | None = None
-    labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
-    prev_hash_intent: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
+    labels: Labels | None = None
+    prev_event_hash_intent: PrevEventHashIntent
 
     @model_validator(mode='after')
     def _validate_conditional_required(self) -> 'EventSubmission':
@@ -424,29 +736,44 @@ class EventSubmission(BaseModel):
             raise ValueError("model_ref is required when action.kind=llm_call")
         if self.action.kind.value == 'decision' and self.decision is None:
             raise ValueError("decision is required when action.kind=decision")
+        if self.action.kind.value == 'run_suspend' and self.suspension_details is None:
+            raise ValueError("suspension_details is required when action.kind=run_suspend")
+        if self.action.kind.value == 'run_resume' and self.resume_details is None:
+            raise ValueError("resume_details is required when action.kind=run_resume")
+        if self.action.kind.value == 'delegate' and self.delegation_details is None:
+            raise ValueError("delegation_details is required when action.kind=delegate")
+        if self.action.kind.value == 'handoff' and self.handoff_details is None:
+            raise ValueError("handoff_details is required when action.kind=handoff")
         return self
-
-
-class BatchAccepted(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    batch_id: str = Field(..., pattern='^b_[0-9A-HJKMNP-TV-Z]{26}$')
-    accepted_count: int = Field(..., ge=1)
-    accepted_events: list[AcceptedEvent]
-    received_at: AwareDatetime
 
 
 class BatchPartial(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    batch_id: str = Field(..., pattern='^b_[0-9A-HJKMNP-TV-Z]{26}$')
+    batch_id: BatchId
     accepted_count: int = Field(..., ge=0)
     rejected_count: int = Field(..., ge=1)
-    accepted_events: list[AcceptedEvent]
-    rejected_events: list[EventRejection]
+    accepted_items: list[AcceptedItem]
+    rejected_items: list[RejectedItem]
     received_at: AwareDatetime
+
+
+class BatchRejected(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    batch_id: BatchId
+    error: IngestError
+    rejected_items: list[RejectedItem]
+
+
+class EventItem(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    type: Literal['event']
+    event: EventSubmission
 
 
 class BatchSubmission(BaseModel):
@@ -454,4 +781,6 @@ class BatchSubmission(BaseModel):
         extra='forbid',
     )
     batch_id: str = Field(..., pattern='^b_[0-9A-HJKMNP-TV-Z]{26}$')
-    events: list[EventSubmission] = Field(..., max_length=100, min_length=1)
+    items: list[RunCreateItem | RunUpdateItem | RunEndItem | EventItem] = Field(
+        ..., max_length=100, min_length=1
+    )

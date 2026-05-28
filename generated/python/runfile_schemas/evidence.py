@@ -36,8 +36,11 @@ class Framework(Enum):
     openai_agents_js = 'openai_agents_js'
     anthropic_claude = 'anthropic_claude'
     anthropic_claude_js = 'anthropic_claude_js'
+    claude_agent_sdk = 'claude_agent_sdk'
     mastra = 'mastra'
     vercel_ai_sdk = 'vercel_ai_sdk'
+    pydantic_ai = 'pydantic_ai'
+    crewai = 'crewai'
     mcp_client = 'mcp_client'
     otel_generic = 'otel_generic'
     manual = 'manual'
@@ -71,17 +74,28 @@ class Actor(BaseModel):
 
 
 class Kind(Enum):
-    agent_run_start = 'agent_run_start'
-    agent_run_end = 'agent_run_end'
     graph_node_enter = 'graph_node_enter'
     graph_node_exit = 'graph_node_exit'
     llm_call = 'llm_call'
+    llm_call_chunk = 'llm_call_chunk'
     tool_call = 'tool_call'
     tool_result = 'tool_result'
+    tool_approval_requested = 'tool_approval_requested'
+    tool_approval_granted = 'tool_approval_granted'
+    tool_approval_denied = 'tool_approval_denied'
     state_read = 'state_read'
     state_write = 'state_write'
     decision = 'decision'
+    run_create = 'run_create'
+    run_end = 'run_end'
+    run_suspend = 'run_suspend'
+    run_resume = 'run_resume'
+    run_abandon = 'run_abandon'
+    delegate = 'delegate'
     handoff = 'handoff'
+    schedule_task = 'schedule_task'
+    parallel_group_open = 'parallel_group_open'
+    parallel_group_close = 'parallel_group_close'
     human_approval = 'human_approval'
     human_input = 'human_input'
     policy_check = 'policy_check'
@@ -115,6 +129,7 @@ class DataClassification(Enum):
     phi = 'phi'
     pci = 'pci'
     fci = 'fci'
+    audit_of_audit = 'audit_of_audit'
 
 
 class RegulatoryTag(RootModel[str]):
@@ -156,6 +171,58 @@ class PolicyThresholdsCrossedItem(RootModel[str]):
     root: str = Field(..., max_length=64)
 
 
+class Reason(Enum):
+    awaiting_human_approval = 'awaiting_human_approval'
+    awaiting_human_input = 'awaiting_human_input'
+    awaiting_webhook = 'awaiting_webhook'
+    awaiting_schedule = 'awaiting_schedule'
+    awaiting_external_system = 'awaiting_external_system'
+    awaiting_subagent = 'awaiting_subagent'
+    other = 'other'
+
+
+class DetectionSource(Enum):
+    framework_inferred = 'framework_inferred'
+    customer_explicit = 'customer_explicit'
+    derived = 'derived'
+
+
+class Framework1(Enum):
+    langgraph = 'langgraph'
+    openai_agents = 'openai_agents'
+    claude_agent_sdk = 'claude_agent_sdk'
+    vercel_ai_sdk = 'vercel_ai_sdk'
+    mcp = 'mcp'
+    manual = 'manual'
+    otel = 'otel'
+
+
+class TriggeredBy(Enum):
+    human_approval_granted = 'human_approval_granted'
+    human_input_received = 'human_input_received'
+    webhook_received = 'webhook_received'
+    schedule_fired = 'schedule_fired'
+    external_system_response = 'external_system_response'
+    subagent_completed = 'subagent_completed'
+    manual_resume = 'manual_resume'
+    other = 'other'
+
+
+class FrameworkSignal1(Enum):
+    langgraph_subgraph = 'langgraph_subgraph'
+    openai_agents_as_tool = 'openai_agents_as_tool'
+    claude_agent_sdk_subagent = 'claude_agent_sdk_subagent'
+    manual = 'manual'
+    other = 'other'
+
+
+class FrameworkSignal2(Enum):
+    openai_agents_handoff = 'openai_agents_handoff'
+    langgraph_explicit = 'langgraph_explicit'
+    manual = 'manual'
+    other = 'other'
+
+
 class Encryption(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -183,6 +250,34 @@ class ContentType(Enum):
     application_vnd_runfile_state_snapshot_json = (
         'application/vnd.runfile.state-snapshot+json'
     )
+    application_vnd_runfile_framework_signal_json = (
+        'application/vnd.runfile.framework-signal+json'
+    )
+
+
+class OtelAttributes(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    gen_ai_system: str | None = None
+    gen_ai_operation_name: str | None = None
+    gen_ai_provider_name: str | None = None
+    gen_ai_request_model: str | None = None
+    gen_ai_response_model: str | None = None
+    gen_ai_request_temperature: float | None = None
+    gen_ai_request_top_p: float | None = None
+    gen_ai_request_max_tokens: int | None = None
+    gen_ai_response_id: str | None = None
+    gen_ai_response_finish_reasons: list[str] | None = None
+    gen_ai_usage_input_tokens: int | None = None
+    gen_ai_usage_output_tokens: int | None = None
+    gen_ai_tool_name: str | None = None
+    gen_ai_tool_call_id: str | None = None
+    gen_ai_agent_id: str | None = None
+    gen_ai_agent_name: str | None = None
+    gen_ai_agent_description: str | None = None
+    gen_ai_conversation_id: str | None = None
+    extra: dict[str, str | float | bool] | None = None
 
 
 class Code(Enum):
@@ -196,6 +291,13 @@ class Code(Enum):
     unauthorized_tool_invocation = 'unauthorized_tool_invocation'
     redaction_policy_mismatch = 'redaction_policy_mismatch'
     schema_version_warning = 'schema_version_warning'
+    agent_identity_mismatch_with_run = 'agent_identity_mismatch_with_run'
+    suspension_sla_exceeded = 'suspension_sla_exceeded'
+    apparent_crash_detected = 'apparent_crash_detected'
+    active_duration_exceeds_threshold = 'active_duration_exceeds_threshold'
+    framework_signal_unrecognised = 'framework_signal_unrecognised'
+    otel_attribute_missing = 'otel_attribute_missing'
+    delegation_loop_detected = 'delegation_loop_detected'
 
 
 class Severity(Enum):
@@ -242,12 +344,32 @@ class BundleVersion(RootModel[str]):
     root: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
 
 
+class AgentIdentity(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='DID-format identifier of the agent. Required when type=agent.',
+        pattern='^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$',
+    )
+
+
+class HumanPrincipal(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='Vault token identifying the human principal.',
+        pattern='^tok_[A-Za-z0-9]{16,64}$',
+    )
+
+
 class ToolVersionHash(RootModel[str]):
     root: str = Field(..., pattern='^sha256:[a-f0-9]{64}$')
 
 
 class EventId(RootModel[str]):
     root: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
+
+
+class RunId(RootModel[str]):
+    root: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
 
 
 class SchemaVersion(RootModel[str]):
@@ -274,6 +396,7 @@ class Sdk(BaseModel):
     version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+(-[a-z0-9.-]+)?$')
     framework: Framework
     framework_version: Version | None = None
+    adapter: str | None = Field(None, max_length=64)
     host: str | None = Field(None, max_length=256)
 
 
@@ -289,6 +412,7 @@ class ModelRef(BaseModel):
     input_tokens: int | None = Field(None, ge=0)
     output_tokens: int | None = Field(None, ge=0)
     temperature: float | None = Field(None, ge=0.0, le=2.0)
+    streaming: bool | None = None
 
 
 class Decision(BaseModel):
@@ -303,6 +427,56 @@ class Decision(BaseModel):
         None, max_length=16
     )
     reversed_by_event: EventId | None = None
+
+
+class FrameworkSignal(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    framework: Framework1 | None = None
+    signal_name: str | None = Field(None, max_length=128)
+    signal_payload_hash: ToolVersionHash | None = None
+
+
+class SuspensionDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    reason: Reason
+    expected_resumer: str | None = None
+    expected_resume_by: AwareDatetime | None = None
+    detection_source: DetectionSource | None = None
+    framework_signal: FrameworkSignal | None = None
+
+
+class ResumeDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    triggered_by: TriggeredBy
+    resumer_principal: HumanPrincipal | None = None
+    suspension_duration_seconds: int | None = Field(None, ge=0)
+    suspension_started_event_id: EventId | None = None
+
+
+class DelegationDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    delegated_run_id: RunId
+    delegated_agent_identity: AgentIdentity
+    wait_for_completion: bool | None = None
+    framework_signal: FrameworkSignal1 | None = None
+
+
+class HandoffDetails(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    target_run_id: RunId
+    target_agent_identity: AgentIdentity
+    handoff_reason: str | None = Field(None, max_length=256)
+    framework_signal: FrameworkSignal2 | None = None
 
 
 class RedactionApplied(BaseModel):
@@ -344,24 +518,30 @@ class Event(BaseModel):
     schema_version: str = Field(..., pattern='^\\d+\\.\\d+\\.\\d+$')
     event_id: str = Field(..., pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
     tenant_id: str = Field(..., pattern='^tnt_[0-9a-z]{12}$')
-    agent_run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
+    run_id: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
     parent_event_id: EventId | None
+    parallel_group_id: str | None = Field(None, pattern='^pg_[0-9A-HJKMNP-TV-Z]{26}$')
     captured_at: AwareDatetime
     received_at: AwareDatetime
     wall_clock_source: WallClockSource
     sdk: Sdk
     actor: Actor
     action: Action
-    subject: Subject
+    subject: Subject | None = None
     model_ref: ModelRef | None = None
     decision: Decision | None = None
+    suspension_details: SuspensionDetails | None = None
+    resume_details: ResumeDetails | None = None
+    delegation_details: DelegationDetails | None = None
+    handoff_details: HandoffDetails | None = None
     payload_ref: PayloadRef | None = None
+    otel_attributes: OtelAttributes | None = None
     redaction_policy_version: SchemaVersion
     regulatory_scope_version: SchemaVersion | None = None
     anomaly_flags: list[AnomalyFlag] | None = Field(None, max_length=32)
     environment: Environment | None = None
     labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
-    prev_hash: ToolVersionHash
+    prev_event_hash: ToolVersionHash
     event_hash: ToolVersionHash
     merkle_inclusion: MerkleInclusion | None = None
 
