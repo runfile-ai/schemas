@@ -1,5 +1,13 @@
 # @runfile-ai/schemas
 
+## 0.3.0
+
+### Minor Changes
+
+- [#5](https://github.com/runfile-ai/schemas/pull/5) [`3593dfb`](https://github.com/runfile-ai/schemas/commit/3593dfbedc801930f88db7fd18661436dc1a3c1e) Thanks [@ada-raj](https://github.com/ada-raj)! - Update the v3 payload encryption envelope.
+
+  Breaking change (pre-1.0; no customer SDK has shipped against the prior shape): `PayloadRef.encryption` — and the ingest `PayloadSubmission` that shares it — replaces `kms_key_arn` with an inline wrapped-data-key id `key_id` (optional) plus the now-required AES-GCM `nonce`. Regenerated JSON Schema, Python, and Go artifacts.
+
 ## 0.2.0
 
 ### Minor Changes
