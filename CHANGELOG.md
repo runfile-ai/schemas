@@ -1,5 +1,23 @@
 # @runfile-ai/schemas
 
+## 0.5.0
+
+### Minor Changes
+
+- Define the event-hash field contract in one place: add `canonicalEventForHash()`
+  (TS + Go + Python) and route `computeEventHash` through it.
+
+  `event_hash` now commits to the SDK-authored capture fields only — the server-set
+  fields `tenant_id`, `received_at`, `anomaly_flags`, `merkle_inclusion`, and the
+  wire-only `prev_event_hash_intent` are excluded. This makes `prev_event_hash_intent`
+  a real `chain_break` signal (the SDK can reproduce the hash) and stops fields written
+  after hashing (Merkle inclusion, server-appended anomaly flags) from retroactively
+  invalidating it. The Event Processor and Verifier CLI both use this projection, so
+  they agree byte-for-byte.
+
+  Note: this changes the output of `computeEventHash` for events carrying any excluded
+  field. No shipped consumer depends on the previous behaviour.
+
 ## 0.4.0
 
 ### Minor Changes

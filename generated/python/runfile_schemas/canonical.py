@@ -41,15 +41,46 @@ def canonical_sha256(value: Any) -> str:
     return f"sha256:{digest}"
 
 
+# Fields NOT covered by event_hash. The hash commits to the SDK-authored
+# capture fields only — never the server-set ones — so the SDK can reproduce it
+# (making prev_event_hash_intent a real chain_break signal) and fields written
+# after hashing (merkle_inclusion, server-appended anomaly_flags) don't
+# retroactively invalidate it. This set is the cross-language chain contract:
+# it MUST match canonical.ts NON_HASHED_EVENT_FIELDS and canonical.go, and the
+# Verifier uses the same projection. Changing it is chain-breaking.
+NON_HASHED_EVENT_FIELDS = frozenset(
+    {
+        "event_hash",  # the hash field itself
+        "tenant_id",  # server-resolved from the API key
+        "received_at",  # server receive stamp
+        "anomaly_flags",  # server may append flags after hashing
+        "merkle_inclusion",  # populated later by the Merkle Builder
+        "prev_event_hash_intent",  # wire-only; the hash commits to prev_event_hash
+    }
+)
+
+
+def canonical_event_for_hash(event: dict[str, Any]) -> dict[str, Any]:
+    """Projects an event onto the fields covered by event_hash.
+
+    Drops the server-set / transport-only fields in NON_HASHED_EVENT_FIELDS.
+    Exclusion-based so additive minor-version fields are hash-protected.
+    """
+    return {k: v for k, v in event.items() if k not in NON_HASHED_EVENT_FIELDS}
+
+
 def compute_event_hash(event: dict[str, Any]) -> str:
     """Computes event_hash for a Runfile event.
 
-    Per the canonicalisation spec, the `event_hash` field itself is excluded
-    from canonicalisation. We serialise the event with `event_hash` omitted,
-    compute SHA-256, then format the result.
+    SHA-256 over the canonical JSON of canonical_event_for_hash(event).
     """
-    rest = {k: v for k, v in event.items() if k != "event_hash"}
-    return canonical_sha256(rest)
+    return canonical_sha256(canonical_event_for_hash(event))
 
 
-__all__ = ["stringify", "canonical_sha256", "compute_event_hash"]
+__all__ = [
+    "stringify",
+    "canonical_sha256",
+    "compute_event_hash",
+    "canonical_event_for_hash",
+    "NON_HASHED_EVENT_FIELDS",
+]

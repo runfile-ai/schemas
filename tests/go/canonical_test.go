@@ -95,3 +95,54 @@ func TestCanonicalSHA256Matches(t *testing.T) {
 		})
 	}
 }
+
+// TestComputeEventHashFieldContract asserts the Go leg honours the same hashed
+// field set as canonical.ts / canonical.py: server-set fields don't change the
+// hash, the authoritative prev_event_hash does. This keeps prev_event_hash_intent
+// a real chain_break signal across languages.
+func TestComputeEventHashFieldContract(t *testing.T) {
+	base := func() map[string]interface{} {
+		return map[string]interface{}{
+			"event_id":        "01HQ3X9N8K7P2M5R4T6V8W0Y1Z",
+			"run_id":          "run_01HQ3X9N8K7P2M5R4T6V8W0Y00",
+			"captured_at":     "2026-05-21T14:32:17.482Z",
+			"prev_event_hash": "sha256:" + repeat("0", 64),
+			"action":          map[string]interface{}{"kind": "llm_call", "name": "messages.create"},
+		}
+	}
+
+	want, err := canonical.ComputeEventHash(base())
+	if err != nil {
+		t.Fatalf("ComputeEventHash: %v", err)
+	}
+
+	for _, f := range []string{"event_hash", "tenant_id", "received_at", "anomaly_flags", "merkle_inclusion", "prev_event_hash_intent"} {
+		ev := base()
+		ev[f] = "server-set-value-should-not-matter"
+		got, err := canonical.ComputeEventHash(ev)
+		if err != nil {
+			t.Fatalf("ComputeEventHash(%s): %v", f, err)
+		}
+		if got != want {
+			t.Fatalf("server-set field %q changed the event hash (got %s want %s)", f, got, want)
+		}
+	}
+
+	ev := base()
+	ev["prev_event_hash"] = "sha256:" + repeat("d", 64)
+	got, err := canonical.ComputeEventHash(ev)
+	if err != nil {
+		t.Fatalf("ComputeEventHash(prev): %v", err)
+	}
+	if got == want {
+		t.Fatal("changing the authoritative prev_event_hash must change the event hash")
+	}
+}
+
+func repeat(s string, n int) string {
+	out := make([]byte, 0, n)
+	for i := 0; i < n; i++ {
+		out = append(out, s[0])
+	}
+	return string(out)
+}
