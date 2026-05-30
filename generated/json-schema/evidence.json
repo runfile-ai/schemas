@@ -80,6 +80,16 @@
                 "type": "string",
                 "pattern": "^pg_[0-9A-HJKMNP-TV-Z]{26}$"
               },
+              "segment_index": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Which execution segment of the run this event belongs to. 0 for the initial segment; incremented each time the run resumes after a suspension. With local_seq this gives a total order within a segment: (run_id, segment_index, local_seq)."
+              },
+              "local_seq": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Monotonic capture counter assigned by the SDK within a single process segment, starting at 0. Authoritative ordering for the hash chain within a segment; resets to 0 at the start of each segment. A gap (e.g. 0,1,3) means an event was lost (sequence_gap anomaly)."
+              },
               "captured_at": {
                 "type": "string",
                 "format": "date-time"
@@ -708,6 +718,8 @@
                       "enum": [
                         "missing_ambient_context",
                         "chain_break",
+                        "sequence_gap",
+                        "causality_violation",
                         "out_of_order_arrival",
                         "model_version_drift",
                         "unknown_agent_identity",
@@ -801,6 +813,8 @@
               "tenant_id",
               "run_id",
               "parent_event_id",
+              "segment_index",
+              "local_seq",
               "captured_at",
               "received_at",
               "wall_clock_source",

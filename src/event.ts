@@ -347,6 +347,8 @@ export type OtelAttributes = z.infer<typeof OtelAttributesSchema>;
 export const AnomalyCodeEnum = z.enum([
   'missing_ambient_context',
   'chain_break',
+  'sequence_gap',
+  'causality_violation',
   'out_of_order_arrival',
   'model_version_drift',
   'unknown_agent_identity',
@@ -498,10 +500,13 @@ export const RunfileRunSchema = z
 export type RunfileRun = z.infer<typeof RunfileRunSchema>;
 
 /**
- * RunfileEvent — a single action captured within a Run. Hash-chained linearly within the
- * run via `prev_event_hash` → `event_hash` (received_at order); causally linked via
- * `parent_event_id` (the execution DAG); concurrent operations grouped via
- * `parallel_group_id`. Committed to a daily Merkle root.
+ * RunfileEvent — a single action captured within a Run. Ordered within a process segment
+ * by `local_seq` (a monotonic capture counter the SDK assigns) and hash-chained in that
+ * order via `prev_event_hash` → `event_hash`; the total order within a segment is
+ * `(run_id, segment_index, local_seq)`. Causally linked via `parent_event_id` (the
+ * execution DAG); concurrent operations grouped via `parallel_group_id`. Segments
+ * (separated by suspend/resume) are stitched by the `run_resume` event's `prev_event_hash`
+ * referencing the `run_suspend` event. Committed to a daily Merkle root.
  *
  * Conditional-required fields (enforced via superRefine below):
  *   - kind=llm_call    → model_ref required
@@ -521,6 +526,20 @@ export const RunfileEventSchema = z
     run_id: runId,
     parent_event_id: ulid.nullable(),
     parallel_group_id: parallelGroupId.optional(),
+    segment_index: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        'Which execution segment of the run this event belongs to. 0 for the initial segment; incremented each time the run resumes after a suspension. With local_seq this gives a total order within a segment: (run_id, segment_index, local_seq).',
+      ),
+    local_seq: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        'Monotonic capture counter assigned by the SDK within a single process segment, starting at 0. Authoritative ordering for the hash chain within a segment; resets to 0 at the start of each segment. A gap (e.g. 0,1,3) means an event was lost (sequence_gap anomaly).',
+      ),
     captured_at: z.string().datetime(),
     received_at: z.string().datetime(),
     wall_clock_source: WallClockSourceEnum,

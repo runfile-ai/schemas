@@ -253,6 +253,8 @@ class OtelAttributes(BaseModel):
 class Code(Enum):
     missing_ambient_context = 'missing_ambient_context'
     chain_break = 'chain_break'
+    sequence_gap = 'sequence_gap'
+    causality_violation = 'causality_violation'
     out_of_order_arrival = 'out_of_order_arrival'
     model_version_drift = 'model_version_drift'
     unknown_agent_identity = 'unknown_agent_identity'
@@ -557,6 +559,16 @@ class RunfileEvent(BaseModel):
     run_id: RunId
     parent_event_id: EventId | None
     parallel_group_id: str | None = Field(None, pattern='^pg_[0-9A-HJKMNP-TV-Z]{26}$')
+    segment_index: int = Field(
+        ...,
+        description='Which execution segment of the run this event belongs to. 0 for the initial segment; incremented each time the run resumes after a suspension. With local_seq this gives a total order within a segment: (run_id, segment_index, local_seq).',
+        ge=0,
+    )
+    local_seq: int = Field(
+        ...,
+        description='Monotonic capture counter assigned by the SDK within a single process segment, starting at 0. Authoritative ordering for the hash chain within a segment; resets to 0 at the start of each segment. A gap (e.g. 0,1,3) means an event was lost (sequence_gap anomaly).',
+        ge=0,
+    )
     captured_at: AwareDatetime
     received_at: AwareDatetime
     wall_clock_source: WallClockSource

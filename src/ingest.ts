@@ -111,6 +111,8 @@ export const EventSubmissionSchema = z
     run_id: runId,
     parent_event_id: ulid.nullable(),
     parallel_group_id: parallelGroupId.optional(),
+    segment_index: z.number().int().nonnegative(),
+    local_seq: z.number().int().nonnegative(),
     captured_at: z.string().datetime(),
     wall_clock_source: WallClockSourceEnum,
     sdk: SdkMetadataSchema,
