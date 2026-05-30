@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runfile-ai-schemas"
-version = "0.3.0"
+version = "0.4.0"
 description = "Runfile event schemas for the Runfile audit platform. Generated from @runfile-ai/schemas Zod source."
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
