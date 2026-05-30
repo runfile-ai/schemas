@@ -85,6 +85,7 @@ type EventSubmission struct {
 	EventID                string               `json:"event_id"`
 	HandoffDetails         *HandoffDetails      `json:"handoff_details,omitempty"`
 	Labels                 map[string]string    `json:"labels,omitempty"`
+	LocalSeq               int64                `json:"local_seq"`
 	ModelRef               *ModelRef            `json:"model_ref,omitempty"`
 	OtelAttributes         *OtelAttributes      `json:"otel_attributes,omitempty"`
 	ParallelGroupID        *string              `json:"parallel_group_id,omitempty"`
@@ -97,6 +98,7 @@ type EventSubmission struct {
 	RunID                  string               `json:"run_id"`
 	SchemaVersion          string               `json:"schema_version"`
 	SDK                    SDK                  `json:"sdk"`
+	SegmentIndex           int64                `json:"segment_index"`
 	Subject                *Subject             `json:"subject,omitempty"`
 	SuspensionDetails      *SuspensionDetails   `json:"suspension_details,omitempty"`
 	WallClockSource        WallClockSource      `json:"wall_clock_source"`
@@ -411,6 +413,7 @@ type Code string
 const (
 	ActiveDurationExceedsThreshold   Code = "active_duration_exceeds_threshold"
 	ApparentCrashDetected            Code = "apparent_crash_detected"
+	CausalityViolation               Code = "causality_violation"
 	ChainBreak                       Code = "chain_break"
 	CodeAgentIdentityMismatchWithRun Code = "agent_identity_mismatch_with_run"
 	DataClassificationMismatch       Code = "data_classification_mismatch"
@@ -423,6 +426,7 @@ const (
 	PolicyThresholdWithoutHitl       Code = "policy_threshold_without_hitl"
 	RedactionPolicyMismatch          Code = "redaction_policy_mismatch"
 	SchemaVersionWarning             Code = "schema_version_warning"
+	SequenceGap                      Code = "sequence_gap"
 	SuspensionSlaExceeded            Code = "suspension_sla_exceeded"
 	UnauthorizedToolInvocation       Code = "unauthorized_tool_invocation"
 	UnknownAgentIdentity             Code = "unknown_agent_identity"

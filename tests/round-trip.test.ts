@@ -101,6 +101,8 @@ describe('BatchSubmission round-trip', () => {
           event_id: '01HQ3X9N8K7P2M5R4T6V8W0Y1Z',
           run_id: 'run_01HQ3X9N8K7P2M5R4T6V8W0Y00',
           parent_event_id: null,
+          segment_index: 0,
+          local_seq: 0,
           captured_at: '2026-05-21T14:32:15.001Z',
           wall_clock_source: 'aws_time_sync',
           sdk: { name: 'runfile-py', version: '0.4.2', framework: 'langgraph' },

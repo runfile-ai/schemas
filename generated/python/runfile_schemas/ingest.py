@@ -292,6 +292,8 @@ class OtelAttributes(BaseModel):
 class Code(Enum):
     missing_ambient_context = 'missing_ambient_context'
     chain_break = 'chain_break'
+    sequence_gap = 'sequence_gap'
+    causality_violation = 'causality_violation'
     out_of_order_arrival = 'out_of_order_arrival'
     model_version_drift = 'model_version_drift'
     unknown_agent_identity = 'unknown_agent_identity'
@@ -708,6 +710,8 @@ class EventSubmission(BaseModel):
     run_id: RunId
     parent_event_id: TriggeredByEventId | None
     parallel_group_id: str | None = Field(None, pattern='^pg_[0-9A-HJKMNP-TV-Z]{26}$')
+    segment_index: int = Field(..., ge=0)
+    local_seq: int = Field(..., ge=0)
     captured_at: AwareDatetime
     wall_clock_source: WallClockSource
     sdk: SdkAtStartModel

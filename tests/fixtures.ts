@@ -32,6 +32,8 @@ export const validLlmCallEvent: RunfileEvent = {
   tenant_id: 'tnt_h7q3n2bz5kp8',
   run_id: 'run_01HQ3X9N8K7P2M5R4T6V8W0Y00',
   parent_event_id: '01HQ3X9N8K7P2M5R4T6V8W0Y0Y',
+  segment_index: 0,
+  local_seq: 0,
   captured_at: '2026-05-21T14:32:17.482Z',
   received_at: '2026-05-21T14:32:18.103Z',
   wall_clock_source: 'aws_time_sync',

@@ -134,35 +134,43 @@ type RunReference struct {
 }
 
 type RunfileEvent struct {
-	Action                 Action               `json:"action"`
-	Actor                  Actor                `json:"actor"`
-	AnomalyFlags           []AnomalyFlagElement `json:"anomaly_flags,omitempty"`
-	CapturedAt             time.Time            `json:"captured_at"`
-	Decision               *DecisionClass       `json:"decision,omitempty"`
-	DelegationDetails      *DelegationDetails   `json:"delegation_details,omitempty"`
-	Environment            *Ent                 `json:"environment,omitempty"`
-	EventHash              string               `json:"event_hash"`
-	EventID                string               `json:"event_id"`
-	HandoffDetails         *HandoffDetails      `json:"handoff_details,omitempty"`
-	Labels                 map[string]string    `json:"labels,omitempty"`
-	MerkleInclusion        *MerkleInclusion     `json:"merkle_inclusion,omitempty"`
-	ModelRef               *ModelRef            `json:"model_ref,omitempty"`
-	OtelAttributes         *OtelAttributes      `json:"otel_attributes,omitempty"`
-	ParallelGroupID        *string              `json:"parallel_group_id,omitempty"`
-	ParentEventID          *string              `json:"parent_event_id"`
-	PayloadRef             *PayloadRef          `json:"payload_ref,omitempty"`
-	PrevEventHash          string               `json:"prev_event_hash"`
-	ReceivedAt             time.Time            `json:"received_at"`
-	RedactionPolicyVersion string               `json:"redaction_policy_version"`
-	RegulatoryScopeVersion *string              `json:"regulatory_scope_version,omitempty"`
-	ResumeDetails          *ResumeDetails       `json:"resume_details,omitempty"`
-	RunID                  string               `json:"run_id"`
-	SchemaVersion          string               `json:"schema_version"`
-	SDK                    SDKMetadata          `json:"sdk"`
-	Subject                *Subject             `json:"subject,omitempty"`
-	SuspensionDetails      *SuspensionDetails   `json:"suspension_details,omitempty"`
-	TenantID               string               `json:"tenant_id"`
-	WallClockSource        WallClockSource      `json:"wall_clock_source"`
+	Action                                                                                      Action               `json:"action"`
+	Actor                                                                                       Actor                `json:"actor"`
+	AnomalyFlags                                                                                []AnomalyFlagElement `json:"anomaly_flags,omitempty"`
+	CapturedAt                                                                                  time.Time            `json:"captured_at"`
+	Decision                                                                                    *DecisionClass       `json:"decision,omitempty"`
+	DelegationDetails                                                                           *DelegationDetails   `json:"delegation_details,omitempty"`
+	Environment                                                                                 *Ent                 `json:"environment,omitempty"`
+	EventHash                                                                                   string               `json:"event_hash"`
+	EventID                                                                                     string               `json:"event_id"`
+	HandoffDetails                                                                              *HandoffDetails      `json:"handoff_details,omitempty"`
+	Labels                                                                                      map[string]string    `json:"labels,omitempty"`
+	// Monotonic capture counter assigned by the SDK within a single process segment, starting                       
+	// at 0. Authoritative ordering for the hash chain within a segment; resets to 0 at the                          
+	// start of each segment. A gap (e.g. 0,1,3) means an event was lost (sequence_gap anomaly).                     
+	LocalSeq                                                                                    int64                `json:"local_seq"`
+	MerkleInclusion                                                                             *MerkleInclusion     `json:"merkle_inclusion,omitempty"`
+	ModelRef                                                                                    *ModelRef            `json:"model_ref,omitempty"`
+	OtelAttributes                                                                              *OtelAttributes      `json:"otel_attributes,omitempty"`
+	ParallelGroupID                                                                             *string              `json:"parallel_group_id,omitempty"`
+	ParentEventID                                                                               *string              `json:"parent_event_id"`
+	PayloadRef                                                                                  *PayloadRef          `json:"payload_ref,omitempty"`
+	PrevEventHash                                                                               string               `json:"prev_event_hash"`
+	ReceivedAt                                                                                  time.Time            `json:"received_at"`
+	RedactionPolicyVersion                                                                      string               `json:"redaction_policy_version"`
+	RegulatoryScopeVersion                                                                      *string              `json:"regulatory_scope_version,omitempty"`
+	ResumeDetails                                                                               *ResumeDetails       `json:"resume_details,omitempty"`
+	RunID                                                                                       string               `json:"run_id"`
+	SchemaVersion                                                                               string               `json:"schema_version"`
+	SDK                                                                                         SDKMetadata          `json:"sdk"`
+	// Which execution segment of the run this event belongs to. 0 for the initial segment;                          
+	// incremented each time the run resumes after a suspension. With local_seq this gives a                         
+	// total order within a segment: (run_id, segment_index, local_seq).                                             
+	SegmentIndex                                                                                int64                `json:"segment_index"`
+	Subject                                                                                     *Subject             `json:"subject,omitempty"`
+	SuspensionDetails                                                                           *SuspensionDetails   `json:"suspension_details,omitempty"`
+	TenantID                                                                                    string               `json:"tenant_id"`
+	WallClockSource                                                                             WallClockSource      `json:"wall_clock_source"`
 }
 
 type SDKMetadata struct {
@@ -284,6 +292,7 @@ const (
 	ActiveDurationExceedsThreshold Code = "active_duration_exceeds_threshold"
 	AgentIdentityMismatchWithRun   Code = "agent_identity_mismatch_with_run"
 	ApparentCrashDetected          Code = "apparent_crash_detected"
+	CausalityViolation             Code = "causality_violation"
 	ChainBreak                     Code = "chain_break"
 	DataClassificationMismatch     Code = "data_classification_mismatch"
 	DelegationLoopDetected         Code = "delegation_loop_detected"
@@ -295,6 +304,7 @@ const (
 	PolicyThresholdWithoutHitl     Code = "policy_threshold_without_hitl"
 	RedactionPolicyMismatch        Code = "redaction_policy_mismatch"
 	SchemaVersionWarning           Code = "schema_version_warning"
+	SequenceGap                    Code = "sequence_gap"
 	SuspensionSlaExceeded          Code = "suspension_sla_exceeded"
 	UnauthorizedToolInvocation     Code = "unauthorized_tool_invocation"
 	UnknownAgentIdentity           Code = "unknown_agent_identity"
