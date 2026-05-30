@@ -55,18 +55,42 @@ func SHA256Hex(v interface{}) (string, error) {
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
-// ComputeEventHash returns the canonical SHA-256 of an event with the
-// event_hash field omitted from the input. The result is the value that
-// belongs in the event's event_hash field.
-func ComputeEventHash(event map[string]interface{}) (string, error) {
-	rest := make(map[string]interface{}, len(event))
+// nonHashedEventFields are the fields NOT covered by event_hash.
+//
+// The hash commits to the SDK-authored capture fields only — never the
+// server-set ones — so the SDK can reproduce it (making prev_event_hash_intent
+// a real chain_break signal) and fields written after hashing (merkle_inclusion,
+// server-appended anomaly_flags) don't retroactively invalidate it. This set is
+// the cross-language chain contract: it MUST match canonical.ts
+// NON_HASHED_EVENT_FIELDS and canonical.py, and the Verifier uses the same
+// projection. Changing it is chain-breaking.
+var nonHashedEventFields = map[string]struct{}{
+	"event_hash":             {}, // the hash field itself
+	"tenant_id":              {}, // server-resolved from the API key
+	"received_at":            {}, // server receive stamp
+	"anomaly_flags":          {}, // server may append flags after hashing
+	"merkle_inclusion":       {}, // populated later by the Merkle Builder
+	"prev_event_hash_intent": {}, // wire-only; the hash commits to prev_event_hash
+}
+
+// CanonicalEventForHash projects an event onto the fields covered by event_hash,
+// dropping the server-set / transport-only fields in nonHashedEventFields.
+// Exclusion-based so additive minor-version fields are hash-protected.
+func CanonicalEventForHash(event map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(event))
 	for k, v := range event {
-		if k == "event_hash" {
+		if _, skip := nonHashedEventFields[k]; skip {
 			continue
 		}
-		rest[k] = v
+		out[k] = v
 	}
-	return SHA256Hex(rest)
+	return out
+}
+
+// ComputeEventHash returns the canonical SHA-256 of CanonicalEventForHash(event).
+// The result is the value that belongs in the event's event_hash field.
+func ComputeEventHash(event map[string]interface{}) (string, error) {
+	return SHA256Hex(CanonicalEventForHash(event))
 }
 
 func write(buf *strings.Builder, v interface{}) error {

@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  NON_HASHED_EVENT_FIELDS,
+  canonicalEventForHash,
   canonicalSha256,
   canonicalStringify,
   computeEventHash,
@@ -70,5 +72,37 @@ describe('computeEventHash', () => {
     const before = computeEventHash(validLlmCallEvent);
     const after = computeEventHash({ ...validLlmCallEvent, captured_at: '2026-05-21T14:32:17.483Z' });
     expect(before).not.toBe(after);
+  });
+});
+
+describe('canonicalEventForHash — the chain field contract', () => {
+  it('drops every server-set / transport-only field', () => {
+    const projected = canonicalEventForHash(validLlmCallEvent);
+    for (const f of NON_HASHED_EVENT_FIELDS) {
+      expect(projected).not.toHaveProperty(f);
+    }
+    // …but keeps SDK-authored fields.
+    expect(projected).toHaveProperty('event_id');
+    expect(projected).toHaveProperty('captured_at');
+    expect(projected).toHaveProperty('prev_event_hash');
+  });
+
+  it('hash is invariant to server-set fields (so prev_event_hash_intent stays a real signal)', () => {
+    const base = computeEventHash(validLlmCallEvent);
+    expect(computeEventHash({ ...validLlmCallEvent, received_at: '2099-01-01T00:00:00.000Z' })).toBe(base);
+    expect(computeEventHash({ ...validLlmCallEvent, tenant_id: 'tnt_000000000000' })).toBe(base);
+    expect(computeEventHash({ ...validLlmCallEvent, anomaly_flags: [{ code: 'chain_break', severity: 'error' }] })).toBe(base);
+    expect(
+      computeEventHash({
+        ...validLlmCallEvent,
+        merkle_inclusion: { manifest_uri: 's3://m/x', leaf_index: 3, merkle_root: `sha256:${'b'.repeat(64)}` },
+      }),
+    ).toBe(base);
+    expect(computeEventHash({ ...validLlmCallEvent, prev_event_hash_intent: `sha256:${'c'.repeat(64)}` })).toBe(base);
+  });
+
+  it('hash DOES change when the authoritative prev_event_hash changes', () => {
+    const base = computeEventHash(validLlmCallEvent);
+    expect(computeEventHash({ ...validLlmCallEvent, prev_event_hash: `sha256:${'d'.repeat(64)}` })).not.toBe(base);
   });
 });

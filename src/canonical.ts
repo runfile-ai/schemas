@@ -39,12 +39,54 @@ function sha256Hex(input: BinaryLike): string {
 }
 
 /**
- * Computes the event_hash for a RunfileEvent.
+ * Fields NOT covered by `event_hash`.
  *
- * Per the canonicalisation spec: the `event_hash` field itself is excluded from
- * canonicalisation — serialise with `event_hash` omitted, compute SHA-256, then set.
+ * The hash commits to the SDK-authored capture fields only — never the
+ * server-set ones. This is what makes the chain work end to end:
+ *   - the SDK can reproduce the hash, so `prev_event_hash_intent` (the previous
+ *     event's `event_hash` as the SDK computed it) is a real integrity claim,
+ *     not noise — a mismatch is a genuine `chain_break`;
+ *   - fields written AFTER the hash is computed (`merkle_inclusion` by the
+ *     Merkle Builder, server-appended `anomaly_flags`) don't retroactively
+ *     invalidate it, so the Verifier re-checks the same bytes the server hashed.
+ *
+ * Exclusion-based (not a whitelist) so additive minor-version fields are
+ * hash-protected automatically. This set is the cross-language chain contract —
+ * the TS reference here, `canonical.go`, and `canonical.py` MUST agree, and the
+ * Verifier CLI must use the same projection. Changing it is chain-breaking:
+ * bump the schema major and re-anchor.
+ */
+export const NON_HASHED_EVENT_FIELDS = [
+  'event_hash', //              the hash field itself
+  'tenant_id', //               server-resolved from the API key, never SDK-sent
+  'received_at', //             server receive stamp
+  'anomaly_flags', //           server may append flags after the hash is computed
+  'merkle_inclusion', //        populated later by the Merkle Builder
+  'prev_event_hash_intent', //  wire-only advisory; the hash commits to prev_event_hash
+] as const;
+
+const NON_HASHED = new Set<string>(NON_HASHED_EVENT_FIELDS);
+
+/**
+ * Projects an event onto the fields covered by `event_hash` — i.e. drops the
+ * server-set / transport-only fields in {@link NON_HASHED_EVENT_FIELDS}. Every
+ * consumer hashes `canonicalEventForHash(event)`, so they agree regardless of
+ * which server-set fields happen to be present on the object.
+ */
+export function canonicalEventForHash<T extends { event_hash?: unknown }>(
+  event: T,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(event as Record<string, unknown>)) {
+    if (!NON_HASHED.has(key)) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Computes the `event_hash` for a RunfileEvent: SHA-256 over the canonical JSON
+ * of {@link canonicalEventForHash}(event).
  */
 export function computeEventHash<T extends { event_hash?: unknown }>(event: T): string {
-  const { event_hash: _omit, ...rest } = event;
-  return canonicalSha256(rest);
+  return canonicalSha256(canonicalEventForHash(event));
 }

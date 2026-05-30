@@ -15,7 +15,13 @@ import json
 import unittest
 from pathlib import Path
 
-from runfile_schemas.canonical import canonical_sha256, stringify
+from runfile_schemas.canonical import (
+    NON_HASHED_EVENT_FIELDS,
+    canonical_event_for_hash,
+    canonical_sha256,
+    compute_event_hash,
+    stringify,
+)
 
 FIXTURE_PATH = (
     Path(__file__).resolve().parent.parent / "fixtures" / "canonical-vectors.json"
@@ -47,6 +53,50 @@ class CanonicalParityTests(unittest.TestCase):
                     vector["sha256"],
                     f"sha256 diverges for vector {vector['name']!r}",
                 )
+
+
+def _sample_event() -> dict:
+    return {
+        "event_id": "01HQ3X9N8K7P2M5R4T6V8W0Y1Z",
+        "run_id": "run_01HQ3X9N8K7P2M5R4T6V8W0Y00",
+        "captured_at": "2026-05-21T14:32:17.482Z",
+        "prev_event_hash": "sha256:" + "0" * 64,
+        "action": {"kind": "llm_call", "name": "messages.create"},
+    }
+
+
+class EventHashFieldContractTests(unittest.TestCase):
+    """The hashed field set must match canonical.ts / canonical.go."""
+
+    def test_server_set_fields_do_not_change_the_hash(self) -> None:
+        want = compute_event_hash(_sample_event())
+        for field in NON_HASHED_EVENT_FIELDS:
+            if field == "event_hash":
+                continue
+            ev = _sample_event()
+            ev[field] = "server-set-value-should-not-matter"
+            with self.subTest(field=field):
+                self.assertEqual(
+                    compute_event_hash(ev),
+                    want,
+                    f"server-set field {field!r} changed the event hash",
+                )
+
+    def test_authoritative_prev_event_hash_changes_the_hash(self) -> None:
+        want = compute_event_hash(_sample_event())
+        ev = _sample_event()
+        ev["prev_event_hash"] = "sha256:" + "d" * 64
+        self.assertNotEqual(compute_event_hash(ev), want)
+
+    def test_projection_drops_excluded_keys(self) -> None:
+        ev = _sample_event()
+        ev["received_at"] = "2026-05-21T14:32:18.103Z"
+        ev["tenant_id"] = "tnt_h7q3n2bz5kp8"
+        projected = canonical_event_for_hash(ev)
+        for field in NON_HASHED_EVENT_FIELDS:
+            self.assertNotIn(field, projected)
+        self.assertIn("event_id", projected)
+        self.assertIn("prev_event_hash", projected)
 
 
 if __name__ == "__main__":
