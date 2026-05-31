@@ -424,8 +424,10 @@ const (
 type Name string
 
 const (
-	RunfilePy  Name = "runfile-py"
-	RunfileSDK Name = "@runfile/sdk"
+	RunfileAI    Name = "runfile-ai"
+	RunfileAISDK Name = "@runfile-ai/sdk"
+	RunfilePy    Name = "runfile-py"
+	RunfileSDK   Name = "@runfile/sdk"
 )
 
 type DataClassification string

@@ -378,7 +378,7 @@ export type AnomalyFlag = z.infer<typeof AnomalyFlagSchema>;
 
 export const WallClockSourceEnum = z.enum(['aws_time_sync', 'ntp', 'host_system', 'unknown']);
 
-export const SdkNameEnum = z.enum(['runfile-py', '@runfile/sdk']);
+export const SdkNameEnum = z.enum(['runfile-py', '@runfile/sdk', 'runfile-ai', '@runfile-ai/sdk']);
 
 export const SdkFrameworkEnum = z.enum([
   'langgraph',

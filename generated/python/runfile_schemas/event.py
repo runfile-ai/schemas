@@ -291,6 +291,8 @@ class AnomalyFlag(BaseModel):
 class Name(Enum):
     runfile_py = 'runfile-py'
     field_runfile_sdk = '@runfile/sdk'
+    runfile_ai = 'runfile-ai'
+    field_runfile_ai_sdk = '@runfile-ai/sdk'
 
 
 class Framework1(Enum):

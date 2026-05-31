@@ -229,7 +229,9 @@
               "type": "string",
               "enum": [
                 "runfile-py",
-                "@runfile/sdk"
+                "@runfile/sdk",
+                "runfile-ai",
+                "@runfile-ai/sdk"
               ]
             },
             "version": {
