@@ -1,5 +1,13 @@
 # @runfile-ai/schemas
 
+## 0.6.0
+
+### Minor Changes
+
+- [#10](https://github.com/runfile-ai/schemas/pull/10) [`ef81eec`](https://github.com/runfile-ai/schemas/commit/ef81eec2b8d93b35128ec74e4feca02000b020c7) Thanks [@ada-raj](https://github.com/ada-raj)! - Add `runfile-ai` and `@runfile-ai/sdk` to `SdkNameEnum`.
+
+  Additive, non-breaking: the existing values `runfile-py` and `@runfile/sdk` are kept (still emitted by the batch smoke tool and the Event Processor's synthetic-event defaults). The new values are what the Python and TS SDKs now report as `sdk.name`, so ingest accepts those events once it ships on this schema. Removing the old values is a separate, future major. Regenerated JSON Schema, Python, and Go artifacts (event, ingest, evidence).
+
 ## 0.5.0
 
 ### Minor Changes
