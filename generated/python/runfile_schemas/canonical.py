@@ -60,13 +60,46 @@ NON_HASHED_EVENT_FIELDS = frozenset(
 )
 
 
+# Fields NOT covered by event_hash WITHIN payload_ref. payload_ref is hashed (it
+# commits to the payload's content), but its location/transport fields differ
+# between the two authors of the chain: the witness (SDK) submits
+# {ciphertext_base64, s3_uri_intent?} and no s3_uri, while the server resolves
+# that to {s3_uri} and strips the ciphertext (bytes go to S3). Hashing them would
+# make the witness's prev_event_hash_intent and the server's recomputed
+# event_hash disagree on every payload-bearing event. The hash commits only to
+# payload CONTENT (sha256, size_bytes, encryption, content_type,
+# redaction_applied); the bytes are already pinned by sha256. MUST match
+# canonical.ts NON_HASHED_PAYLOAD_REF_FIELDS and canonical.go.
+NON_HASHED_PAYLOAD_REF_FIELDS = frozenset(
+    {
+        "s3_uri",  # server-assigned canonical location
+        "s3_uri_intent",  # witness hint; server replaces it with s3_uri
+        "ciphertext_base64",  # inline encrypted bytes; server uploads to S3 and strips
+    }
+)
+
+
 def canonical_event_for_hash(event: dict[str, Any]) -> dict[str, Any]:
     """Projects an event onto the fields covered by event_hash.
 
-    Drops the server-set / transport-only fields in NON_HASHED_EVENT_FIELDS.
-    Exclusion-based so additive minor-version fields are hash-protected.
+    Drops the server-set / transport-only fields in NON_HASHED_EVENT_FIELDS and,
+    within payload_ref, the location/transport fields in
+    NON_HASHED_PAYLOAD_REF_FIELDS. Exclusion-based so additive minor-version
+    fields are hash-protected.
     """
-    return {k: v for k, v in event.items() if k not in NON_HASHED_EVENT_FIELDS}
+    out: dict[str, Any] = {}
+    for k, v in event.items():
+        if k in NON_HASHED_EVENT_FIELDS:
+            continue
+        if k == "payload_ref" and isinstance(v, dict):
+            out[k] = {
+                pk: pv
+                for pk, pv in v.items()
+                if pk not in NON_HASHED_PAYLOAD_REF_FIELDS
+            }
+        else:
+            out[k] = v
+    return out
 
 
 def compute_event_hash(event: dict[str, Any]) -> str:
@@ -83,4 +116,5 @@ __all__ = [
     "compute_event_hash",
     "canonical_event_for_hash",
     "NON_HASHED_EVENT_FIELDS",
+    "NON_HASHED_PAYLOAD_REF_FIELDS",
 ]

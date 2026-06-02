@@ -73,13 +73,49 @@ var nonHashedEventFields = map[string]struct{}{
 	"prev_event_hash_intent": {}, // wire-only; the hash commits to prev_event_hash
 }
 
+// nonHashedPayloadRefFields are the fields NOT covered by event_hash WITHIN
+// payload_ref. payload_ref is hashed (it commits to the payload's content), but
+// its location/transport fields differ between the witness and the server: the
+// SDK submits {ciphertext_base64, s3_uri_intent?} and no s3_uri, while the server
+// resolves that to {s3_uri} and strips the ciphertext (bytes go to S3). Hashing
+// them would make the witness's prev_event_hash_intent and the server's
+// recomputed event_hash disagree on every payload-bearing event. The hash
+// commits only to payload CONTENT (sha256, size_bytes, encryption, content_type,
+// redaction_applied); the bytes are already pinned by sha256. MUST match
+// canonical.ts NON_HASHED_PAYLOAD_REF_FIELDS and canonical.py.
+var nonHashedPayloadRefFields = map[string]struct{}{
+	"s3_uri":            {}, // server-assigned canonical location
+	"s3_uri_intent":     {}, // witness hint; server replaces it with s3_uri
+	"ciphertext_base64": {}, // inline encrypted bytes; server uploads to S3 and strips
+}
+
 // CanonicalEventForHash projects an event onto the fields covered by event_hash,
-// dropping the server-set / transport-only fields in nonHashedEventFields.
+// dropping the server-set / transport-only fields in nonHashedEventFields and,
+// within payload_ref, the location/transport fields in nonHashedPayloadRefFields.
 // Exclusion-based so additive minor-version fields are hash-protected.
 func CanonicalEventForHash(event map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(event))
 	for k, v := range event {
 		if _, skip := nonHashedEventFields[k]; skip {
+			continue
+		}
+		if k == "payload_ref" {
+			if ref, ok := v.(map[string]interface{}); ok {
+				out[k] = projectPayloadRef(ref)
+				continue
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// projectPayloadRef drops payload_ref's location/transport fields, keeping only
+// the content fields that both the witness and the server commit to.
+func projectPayloadRef(ref map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(ref))
+	for k, v := range ref {
+		if _, skip := nonHashedPayloadRefFields[k]; skip {
 			continue
 		}
 		out[k] = v
