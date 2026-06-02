@@ -158,5 +158,32 @@ class PayloadRefProjectionTests(unittest.TestCase):
         self.assertNotEqual(compute_event_hash(tampered), want)
 
 
+class Rfc8785NumberTests(unittest.TestCase):
+    """Integer-valued floats must serialise without '.0' (RFC 8785), matching
+    canonical.ts / canonical.go and the JS-normalised value the EP hashes."""
+
+    def test_integer_valued_floats_drop_dot_zero(self) -> None:
+        self.assertEqual(stringify({"x": 2.0}), '{"x":2}')
+        self.assertEqual(stringify(19555.0), "19555")
+        self.assertEqual(stringify([1.0, 2.5]), "[1,2.5]")
+
+    def test_non_integer_floats_preserved(self) -> None:
+        self.assertEqual(stringify({"t": 0.7}), '{"t":0.7}')
+
+    def test_event_with_integer_valued_float_hashes_like_int_form(self) -> None:
+        # The otel cache-token floats that caused the cross-language chain_break:
+        # the witness's float form must now hash identically to the int form the
+        # server sees after the ingest layer's JSON round-trip.
+        ev_float = _sample_event()
+        ev_float["otel_attributes"] = {
+            "extra": {"uncached_input_tokens": 2.0, "cache_read_input_tokens": 19555.0}
+        }
+        ev_int = _sample_event()
+        ev_int["otel_attributes"] = {
+            "extra": {"uncached_input_tokens": 2, "cache_read_input_tokens": 19555}
+        }
+        self.assertEqual(compute_event_hash(ev_float), compute_event_hash(ev_int))
+
+
 if __name__ == "__main__":
     unittest.main()

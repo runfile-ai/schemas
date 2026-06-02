@@ -196,6 +196,57 @@ func TestComputeEventHashPayloadRefProjection(t *testing.T) {
 	}
 }
 
+// TestCanonicalNumberRFC8785 asserts integer-valued numbers serialise without a
+// fractional part ("2.0" -> "2"), matching canonical.ts / canonical.py and the
+// JS-normalised value the Event Processor hashes. Non-integer decimals are kept.
+func TestCanonicalNumberRFC8785(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{`{"x":2.0}`, `{"x":2}`},
+		{`{"x":19555.0}`, `{"x":19555}`},
+		{`{"x":0.7}`, `{"x":0.7}`},
+		{`[1.0,2.5]`, `[1,2.5]`},
+		{`{"x":42}`, `{"x":42}`},
+		{`{"x":1000.0}`, `{"x":1000}`},
+	}
+	for _, c := range cases {
+		dec := json.NewDecoder(bytes.NewReader([]byte(c.in)))
+		dec.UseNumber()
+		var v interface{}
+		if err := dec.Decode(&v); err != nil {
+			t.Fatalf("decode %s: %v", c.in, err)
+		}
+		got, err := canonical.Marshal(v)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", c.in, err)
+		}
+		if string(got) != c.want {
+			t.Fatalf("%s -> %q want %q", c.in, string(got), c.want)
+		}
+	}
+}
+
+// TestComputeEventHashIntegerFloatStable asserts an event carrying an
+// integer-valued float (e.g. otel cache-token counts) hashes identically to the
+// JS-normalised int form — the cross-language divergence that caused chain_break
+// on every payload-bearing event before this fix.
+func TestComputeEventHashIntegerFloatStable(t *testing.T) {
+	base := func(tok interface{}) map[string]interface{} {
+		return map[string]interface{}{
+			"event_id":        "01HQ3X9N8K7P2M5R4T6V8W0Y1Z",
+			"run_id":          "run_01HQ3X9N8K7P2M5R4T6V8W0Y00",
+			"captured_at":     "2026-05-21T14:32:17.482Z",
+			"prev_event_hash": "sha256:" + repeat("0", 64),
+			"action":          map[string]interface{}{"kind": "llm_call", "name": "messages.create"},
+			"otel_attributes": map[string]interface{}{"extra": map[string]interface{}{"cache_read_input_tokens": tok}},
+		}
+	}
+	asFloat, _ := canonical.ComputeEventHash(base(json.Number("19555.0")))
+	asInt, _ := canonical.ComputeEventHash(base(json.Number("19555")))
+	if asFloat != asInt {
+		t.Fatalf("integer-valued float must hash like its int form: %s vs %s", asFloat, asInt)
+	}
+}
+
 func repeat(s string, n int) string {
 	out := make([]byte, 0, n)
 	for i := 0; i < n; i++ {
