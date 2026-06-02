@@ -16,6 +16,34 @@ import json
 from typing import Any
 
 
+def _normalize_numbers(value: Any) -> Any:
+    """Coerce integer-valued floats to ints so they serialise without a
+    fractional part, per RFC 8785 (ECMAScript Number::toString): ``2.0`` → ``2``.
+
+    Python's ``json.dumps`` keeps the ``.0`` on a float (``2.0`` → ``"2.0"``),
+    which is NOT RFC 8785 and disagrees with the TS leg (``canonicalize``), the
+    Go leg, and the JS-normalised value the Event Processor actually hashes
+    (the ingest layer's ``JSON.parse``/``stringify`` collapses ``2.0`` → ``2``).
+    Without this, any event carrying an integer-valued float (e.g.
+    ``otel_attributes.extra.cache_read_input_tokens: 19555.0``) hashes
+    differently on the witness vs the server → a false ``chain_break``.
+
+    Runfile's hashed numbers are well within the 2^53 safe-integer range (token
+    counts, byte sizes, durations), where the plain-integer form matches
+    ECMAScript exactly; non-integer floats keep ``json.dumps``'s shortest repr,
+    which matches for the decimals Runfile uses (temperatures, ratios).
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, dict):
+        return {k: _normalize_numbers(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_normalize_numbers(v) for v in value]
+    return value
+
+
 def stringify(value: Any) -> str:
     """Canonical JSON per RFC 8785 (JCS).
 
@@ -23,11 +51,13 @@ def stringify(value: Any) -> str:
     it for general API payloads (those go through plain json.dumps) — RFC 8785
     is strictly for hash determinism.
     """
-    # json.dumps with sort_keys + no whitespace + ensure_ascii=False matches
-    # the RFC 8785 baseline for the data shapes Runfile uses (strings, ints,
-    # floats with no NaN/Inf, booleans, null, arrays, objects).
+    # Normalise numbers (integer-valued floats → ints) for RFC 8785, then
+    # json.dumps with sort_keys + no whitespace + ensure_ascii=False matches the
+    # canonical form for the data shapes Runfile uses (strings, ints, floats
+    # with no NaN/Inf, booleans, null, arrays, objects). MUST agree byte-for-byte
+    # with canonical.ts and canonical.go.
     return json.dumps(
-        value,
+        _normalize_numbers(value),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,

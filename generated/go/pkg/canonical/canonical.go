@@ -15,7 +15,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -129,6 +131,31 @@ func ComputeEventHash(event map[string]interface{}) (string, error) {
 	return SHA256Hex(CanonicalEventForHash(event))
 }
 
+// canonicalNumber renders a JSON number per RFC 8785 (ECMAScript Number::toString):
+// an integer-valued number carries no fractional/exponent part ("2.0" -> "2"), so
+// the witness (Python/TS) and the server agree even when a value arrives as a
+// float. In the SDK->ingest->EP path numbers are already JS-normalised; this also
+// covers server-authored numbers (e.g. audit-of-audit) that never pass through JS.
+// MUST agree byte-for-byte with canonical.ts and canonical.py.
+func canonicalNumber(n json.Number) string {
+	s := string(n)
+	// A plain integer token is already canonical.
+	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return strconv.FormatInt(i, 10)
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return s // not parseable as a float; leave the token untouched
+	}
+	// Integer-valued float within the range ECMAScript renders without an
+	// exponent (< 2^53 covers every hashed number Runfile produces).
+	if f == math.Trunc(f) && !math.IsInf(f, 0) && math.Abs(f) < 1e21 {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	// Non-integer: shortest round-trip, matching the decimals Runfile uses.
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
 func write(buf *strings.Builder, v interface{}) error {
 	switch t := v.(type) {
 	case nil:
@@ -146,7 +173,7 @@ func write(buf *strings.Builder, v interface{}) error {
 		}
 		buf.Write(raw)
 	case json.Number:
-		buf.WriteString(string(t))
+		buf.WriteString(canonicalNumber(t))
 	case []interface{}:
 		buf.WriteByte('[')
 		for i, item := range t {

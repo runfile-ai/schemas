@@ -42,6 +42,17 @@
       },
       "canonical": "{\"b\":true,\"n\":42,\"s\":\"hello\",\"z\":null}",
       "sha256": "sha256:8260e0920cc66f65386edcfb2726b942c4295d276dc27fabc66d6b003ec97fea"
+    },
+    {
+      "name": "integer-valued floats render without .0 (RFC 8785)",
+      "input": {
+        "a": 2.0,
+        "b": 19555.0,
+        "c": 0.7,
+        "n": [1.0, 2.5]
+      },
+      "canonical": "{\"a\":2,\"b\":19555,\"c\":0.7,\"n\":[1,2.5]}",
+      "sha256": "sha256:09d4b9cd2fca039a952633c135d6e6745f233ad7a4cfdc5c2982c970d20b1af7"
     }
   ]
 }
