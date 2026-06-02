@@ -139,6 +139,63 @@ func TestComputeEventHashFieldContract(t *testing.T) {
 	}
 }
 
+// TestComputeEventHashPayloadRefProjection asserts payload_ref's location /
+// transport fields (s3_uri, s3_uri_intent, ciphertext_base64) are NOT hashed,
+// so the witness (ciphertext + intent, no s3_uri) and the server (s3_uri, no
+// ciphertext) hash a payload-bearing event identically — while the payload
+// CONTENT (sha256, …) stays committed. Matches canonical.ts / canonical.py.
+func TestComputeEventHashPayloadRefProjection(t *testing.T) {
+	content := func() map[string]interface{} {
+		return map[string]interface{}{
+			"sha256":       "sha256:" + repeat("e", 64),
+			"size_bytes":   1234,
+			"encryption":   map[string]interface{}{"algorithm": "AES-256-GCM", "data_key_id": "dk_abc"},
+			"content_type": "application/vnd.runfile.llm-request+json",
+		}
+	}
+	event := func(ref map[string]interface{}) map[string]interface{} {
+		return map[string]interface{}{
+			"event_id":        "01HQ3X9N8K7P2M5R4T6V8W0Y1Z",
+			"run_id":          "run_01HQ3X9N8K7P2M5R4T6V8W0Y00",
+			"captured_at":     "2026-05-21T14:32:17.482Z",
+			"prev_event_hash": "sha256:" + repeat("0", 64),
+			"action":          map[string]interface{}{"kind": "llm_call", "name": "messages.create"},
+			"payload_ref":     ref,
+		}
+	}
+
+	witnessRef := content()
+	witnessRef["s3_uri_intent"] = "s3://hint/x"
+	witnessRef["ciphertext_base64"] = "Y2lwaGVydGV4dA=="
+
+	serverRef := content()
+	serverRef["s3_uri"] = "s3://runfile-payloads-prod/tnt/run/evt.bin"
+
+	witnessHash, err := canonical.ComputeEventHash(event(witnessRef))
+	if err != nil {
+		t.Fatalf("witness hash: %v", err)
+	}
+	serverHash, err := canonical.ComputeEventHash(event(serverRef))
+	if err != nil {
+		t.Fatalf("server hash: %v", err)
+	}
+	if witnessHash != serverHash {
+		t.Fatalf("witness and server hashes diverge on payload_ref location fields\n witness: %s\n server:  %s", witnessHash, serverHash)
+	}
+
+	// Content stays committed: a changed sha256 must change the hash.
+	tamperedRef := content()
+	tamperedRef["sha256"] = "sha256:" + repeat("f", 64)
+	tamperedRef["s3_uri"] = "s3://runfile-payloads-prod/tnt/run/evt.bin"
+	tamperedHash, err := canonical.ComputeEventHash(event(tamperedRef))
+	if err != nil {
+		t.Fatalf("tampered hash: %v", err)
+	}
+	if tamperedHash == serverHash {
+		t.Fatal("changing payload_ref.sha256 (content) must change the event hash")
+	}
+}
+
 func repeat(s string, n int) string {
 	out := make([]byte, 0, n)
 	for i := 0; i < n; i++ {

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from runfile_schemas.canonical import (
     NON_HASHED_EVENT_FIELDS,
+    NON_HASHED_PAYLOAD_REF_FIELDS,
     canonical_event_for_hash,
     canonical_sha256,
     compute_event_hash,
@@ -97,6 +98,64 @@ class EventHashFieldContractTests(unittest.TestCase):
             self.assertNotIn(field, projected)
         self.assertIn("event_id", projected)
         self.assertIn("prev_event_hash", projected)
+
+
+def _payload_content() -> dict:
+    return {
+        "sha256": "sha256:" + "e" * 64,
+        "size_bytes": 1234,
+        "encryption": {"algorithm": "AES-256-GCM", "data_key_id": "dk_abc"},
+        "content_type": "application/vnd.runfile.llm-request+json",
+    }
+
+
+class PayloadRefProjectionTests(unittest.TestCase):
+    """payload_ref commits to content, not location/transport. Must match
+    canonical.ts / canonical.go so witness and server agree."""
+
+    def test_witness_and_server_hash_payload_event_identically(self) -> None:
+        # Witness (SDK): inline ciphertext + URI hint, no resolved s3_uri.
+        witness = _sample_event()
+        witness["payload_ref"] = {
+            **_payload_content(),
+            "s3_uri_intent": "s3://hint/x",
+            "ciphertext_base64": "Y2lwaGVydGV4dA==",
+        }
+        # Server: ciphertext uploaded and stripped, canonical s3_uri written.
+        server = _sample_event()
+        server["payload_ref"] = {
+            **_payload_content(),
+            "s3_uri": "s3://runfile-payloads-prod/tnt/run/evt.bin",
+        }
+        self.assertEqual(compute_event_hash(witness), compute_event_hash(server))
+
+    def test_projection_drops_location_keeps_content(self) -> None:
+        server = _sample_event()
+        server["payload_ref"] = {
+            **_payload_content(),
+            "s3_uri": "s3://runfile-payloads-prod/tnt/run/evt.bin",
+        }
+        ref = canonical_event_for_hash(server)["payload_ref"]
+        for field in NON_HASHED_PAYLOAD_REF_FIELDS:
+            self.assertNotIn(field, ref)
+        self.assertIn("sha256", ref)
+        self.assertIn("size_bytes", ref)
+        self.assertIn("encryption", ref)
+
+    def test_payload_content_stays_committed(self) -> None:
+        server = _sample_event()
+        server["payload_ref"] = {
+            **_payload_content(),
+            "s3_uri": "s3://runfile-payloads-prod/tnt/run/evt.bin",
+        }
+        want = compute_event_hash(server)
+        tampered = _sample_event()
+        tampered["payload_ref"] = {
+            **_payload_content(),
+            "sha256": "sha256:" + "f" * 64,
+            "s3_uri": "s3://runfile-payloads-prod/tnt/run/evt.bin",
+        }
+        self.assertNotEqual(compute_event_hash(tampered), want)
 
 
 if __name__ == "__main__":

@@ -106,3 +106,46 @@ describe('canonicalEventForHash — the chain field contract', () => {
     expect(computeEventHash({ ...validLlmCallEvent, prev_event_hash: `sha256:${'d'.repeat(64)}` })).not.toBe(base);
   });
 });
+
+describe('canonicalEventForHash — payload_ref commits to content, not location/transport', () => {
+  // The two authors of the chain see payload_ref in different forms:
+  const contentFields = {
+    sha256: `sha256:${'e'.repeat(64)}`,
+    size_bytes: 1234,
+    encryption: { algorithm: 'AES-256-GCM', data_key_id: 'dk_abc', nonce_base64: 'AAAAAAAAAAAAAAAA' },
+    content_type: 'application/vnd.runfile.llm-request+json',
+  };
+  // Witness (SDK): inline ciphertext + URI hint, no resolved s3_uri.
+  const witnessEvent: Record<string, unknown> = {
+    ...validLlmCallEvent,
+    payload_ref: { ...contentFields, s3_uri_intent: 's3://hint/x', ciphertext_base64: 'Y2lwaGVydGV4dA==' },
+  };
+  // Server: ciphertext uploaded and stripped, canonical s3_uri written.
+  const serverEvent: Record<string, unknown> = {
+    ...validLlmCallEvent,
+    payload_ref: { ...contentFields, s3_uri: 's3://runfile-payloads-prod/tnt/run/evt.bin' },
+  };
+
+  it('witness and server hash the same payload-bearing event identically', () => {
+    expect(computeEventHash(witnessEvent)).toBe(computeEventHash(serverEvent));
+  });
+
+  it('projects payload_ref to content fields, dropping s3_uri / s3_uri_intent / ciphertext_base64', () => {
+    const server = canonicalEventForHash(serverEvent).payload_ref as Record<string, unknown>;
+    expect(server).toMatchObject({ sha256: contentFields.sha256, size_bytes: 1234 });
+    expect(server).toHaveProperty('encryption');
+    expect(server).not.toHaveProperty('s3_uri');
+    const witness = canonicalEventForHash(witnessEvent).payload_ref as Record<string, unknown>;
+    expect(witness).not.toHaveProperty('ciphertext_base64');
+    expect(witness).not.toHaveProperty('s3_uri_intent');
+  });
+
+  it('still commits to payload CONTENT — a changed sha256 changes the hash', () => {
+    const base = computeEventHash(serverEvent);
+    const tampered: Record<string, unknown> = {
+      ...validLlmCallEvent,
+      payload_ref: { ...contentFields, sha256: `sha256:${'f'.repeat(64)}`, s3_uri: 's3://runfile-payloads-prod/tnt/run/evt.bin' },
+    };
+    expect(computeEventHash(tampered)).not.toBe(base);
+  });
+});

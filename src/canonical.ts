@@ -68,9 +68,44 @@ export const NON_HASHED_EVENT_FIELDS = [
 const NON_HASHED = new Set<string>(NON_HASHED_EVENT_FIELDS);
 
 /**
+ * Fields NOT covered by `event_hash` WITHIN `payload_ref`.
+ *
+ * `payload_ref` is hashed — it commits to the payload's content — but its
+ * location/transport fields differ between the two authors of the chain: the
+ * witness (SDK) submits `{ ciphertext_base64, s3_uri_intent? }` and no `s3_uri`,
+ * while the server resolves that to `{ s3_uri }` and strips the ciphertext (the
+ * bytes go to S3). Hashing those fields would make the witness's
+ * `prev_event_hash_intent` and the server's recomputed `event_hash` disagree on
+ * every payload-bearing event — a permanent false `chain_break`. The hash must
+ * commit only to the payload CONTENT (`sha256`, `size_bytes`, `encryption`,
+ * `content_type`, `redaction_applied`); the bytes are already pinned by
+ * `sha256`, so dropping the location/transport fields loses no integrity.
+ *
+ * Cross-language contract: MUST match canonical.go and canonical.py.
+ */
+export const NON_HASHED_PAYLOAD_REF_FIELDS = [
+  's3_uri', //            server-assigned canonical location
+  's3_uri_intent', //     witness hint; server replaces it with s3_uri
+  'ciphertext_base64', // inline encrypted bytes; server uploads to S3 and strips
+] as const;
+
+const NON_HASHED_PAYLOAD_REF = new Set<string>(NON_HASHED_PAYLOAD_REF_FIELDS);
+
+/** Drops payload_ref's location/transport fields, keeping only content fields. */
+function projectPayloadRef(ref: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(ref)) {
+    if (!NON_HASHED_PAYLOAD_REF.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+/**
  * Projects an event onto the fields covered by `event_hash` — i.e. drops the
- * server-set / transport-only fields in {@link NON_HASHED_EVENT_FIELDS}. Every
- * consumer hashes `canonicalEventForHash(event)`, so they agree regardless of
+ * server-set / transport-only fields in {@link NON_HASHED_EVENT_FIELDS}, and
+ * within `payload_ref` drops the location/transport fields in
+ * {@link NON_HASHED_PAYLOAD_REF_FIELDS}. Every consumer hashes
+ * `canonicalEventForHash(event)`, so witness and server agree regardless of
  * which server-set fields happen to be present on the object.
  */
 export function canonicalEventForHash<T extends { event_hash?: unknown }>(
@@ -78,7 +113,12 @@ export function canonicalEventForHash<T extends { event_hash?: unknown }>(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(event as Record<string, unknown>)) {
-    if (!NON_HASHED.has(key)) out[key] = value;
+    if (NON_HASHED.has(key)) continue;
+    if (key === 'payload_ref' && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      out[key] = projectPayloadRef(value as Record<string, unknown>);
+    } else {
+      out[key] = value;
+    }
   }
   return out;
 }
