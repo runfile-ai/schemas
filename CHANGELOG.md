@@ -1,5 +1,14 @@
 # @runfile-ai/schemas
 
+## 0.9.0
+
+### Minor Changes
+
+- [#16](https://github.com/runfile-ai/schemas/pull/16) [`d0d3999`](https://github.com/runfile-ai/schemas/commit/d0d3999a5ee3a8a29e6057fa004d084f3c450f9a) Thanks [@ada-raj](https://github.com/ada-raj)! - Add optional `correlation_token` to `SuspensionDetails` and `ResumeDetails` — the
+  framework's durable resume handle (LangGraph `thread_id`, Claude `session_id`,
+  OpenAI `trace_id`), captured at suspend/resume so an out-of-process resume or
+  human-approval can be joined back to the run. Additive and backward-compatible.
+
 ## 0.8.0
 
 ### Minor Changes
