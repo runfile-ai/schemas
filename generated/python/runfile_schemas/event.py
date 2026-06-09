@@ -428,6 +428,11 @@ class SuspensionDetails(BaseModel):
     expected_resume_by: AwareDatetime | None = None
     detection_source: DetectionSource | None = None
     framework_signal: FrameworkSignal | None = None
+    correlation_token: str | None = Field(
+        None,
+        description="The framework's own durable resume handle, captured at suspend so an out-of-process resume or human-approval can be joined back to this run (LangGraph thread_id, Claude session_id, OpenAI trace_id). Not secret; a correlation key, not a credential.",
+        max_length=256,
+    )
 
 
 class ResumeDetails(BaseModel):
@@ -438,6 +443,11 @@ class ResumeDetails(BaseModel):
     resumer_principal: HumanPrincipal | None = None
     suspension_duration_seconds: int | None = Field(None, ge=0)
     suspension_started_event_id: EventId | None = None
+    correlation_token: str | None = Field(
+        None,
+        description='The durable resume handle this resume corresponds to; mirrors run_suspend.suspension_details.correlation_token so the suspend/resume pair (and any out-of-process human-approval) can be stitched together.',
+        max_length=256,
+    )
 
 
 class DelegationDetails(BaseModel):

@@ -626,6 +626,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "correlation_token": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "The framework's own durable resume handle, captured at suspend so an out-of-process resume or human-approval can be joined back to this run (LangGraph thread_id, Claude session_id, OpenAI trace_id). Not secret; a correlation key, not a credential."
             }
           },
           "required": [
@@ -658,6 +663,11 @@
             },
             "suspension_started_event_id": {
               "$ref": "#/definitions/RunSubmission/properties/delegated_from/properties/event_id"
+            },
+            "correlation_token": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "The durable resume handle this resume corresponds to; mirrors run_suspend.suspension_details.correlation_token so the suspend/resume pair (and any out-of-process human-approval) can be stitched together."
             }
           },
           "required": [
