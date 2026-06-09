@@ -210,6 +210,16 @@ export const SuspensionDetailsSchema = z
     expected_resume_by: z.string().datetime().optional(),
     detection_source: DetectionSourceEnum.optional(),
     framework_signal: FrameworkSignalSchema.optional(),
+    correlation_token: z
+      .string()
+      .max(256)
+      .optional()
+      .describe(
+        "The framework's own durable resume handle, captured at suspend so an " +
+          'out-of-process resume or human-approval can be joined back to this run ' +
+          '(LangGraph thread_id, Claude session_id, OpenAI trace_id). Not secret; ' +
+          'a correlation key, not a credential.',
+      ),
   })
   .strict();
 export type SuspensionDetails = z.infer<typeof SuspensionDetailsSchema>;
@@ -231,6 +241,15 @@ export const ResumeDetailsSchema = z
     resumer_principal: vaultToken.optional(),
     suspension_duration_seconds: z.number().int().nonnegative().optional(),
     suspension_started_event_id: ulid.optional(),
+    correlation_token: z
+      .string()
+      .max(256)
+      .optional()
+      .describe(
+        'The durable resume handle this resume corresponds to; mirrors ' +
+          'run_suspend.suspension_details.correlation_token so the suspend/resume ' +
+          'pair (and any out-of-process human-approval) can be stitched together.',
+      ),
   })
   .strict();
 export type ResumeDetails = z.infer<typeof ResumeDetailsSchema>;

@@ -209,10 +209,14 @@ type RedactionApplied struct {
 }
 
 type ResumeDetails struct {
-	ResumerPrincipal          *string     `json:"resumer_principal,omitempty"`
-	SuspensionDurationSeconds *int64      `json:"suspension_duration_seconds,omitempty"`
-	SuspensionStartedEventID  *string     `json:"suspension_started_event_id,omitempty"`
-	TriggeredBy               TriggeredBy `json:"triggered_by"`
+	// The durable resume handle this resume corresponds to; mirrors                                   
+	// run_suspend.suspension_details.correlation_token so the suspend/resume pair (and any            
+	// out-of-process human-approval) can be stitched together.                                        
+	CorrelationToken                                                                       *string     `json:"correlation_token,omitempty"`
+	ResumerPrincipal                                                                       *string     `json:"resumer_principal,omitempty"`
+	SuspensionDurationSeconds                                                              *int64      `json:"suspension_duration_seconds,omitempty"`
+	SuspensionStartedEventID                                                               *string     `json:"suspension_started_event_id,omitempty"`
+	TriggeredBy                                                                            TriggeredBy `json:"triggered_by"`
 }
 
 type SDK struct {
@@ -231,11 +235,15 @@ type Subject struct {
 }
 
 type SuspensionDetails struct {
-	DetectionSource  *DetectionSource      `json:"detection_source,omitempty"`
-	ExpectedResumeBy *time.Time            `json:"expected_resume_by,omitempty"`
-	ExpectedResumer  *string               `json:"expected_resumer,omitempty"`
-	FrameworkSignal  *FrameworkSignalClass `json:"framework_signal,omitempty"`
-	Reason           Reason                `json:"reason"`
+	// The framework's own durable resume handle, captured at suspend so an out-of-process                       
+	// resume or human-approval can be joined back to this run (LangGraph thread_id, Claude                      
+	// session_id, OpenAI trace_id). Not secret; a correlation key, not a credential.                            
+	CorrelationToken                                                                       *string               `json:"correlation_token,omitempty"`
+	DetectionSource                                                                        *DetectionSource      `json:"detection_source,omitempty"`
+	ExpectedResumeBy                                                                       *time.Time            `json:"expected_resume_by,omitempty"`
+	ExpectedResumer                                                                        *string               `json:"expected_resumer,omitempty"`
+	FrameworkSignal                                                                        *FrameworkSignalClass `json:"framework_signal,omitempty"`
+	Reason                                                                                 Reason                `json:"reason"`
 }
 
 type FrameworkSignalClass struct {
