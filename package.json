@@ -2,6 +2,10 @@
   "name": "@runfile-ai/schemas",
   "version": "0.10.0",
   "description": "Runfile event, ingest, vault, evidence, and manifest schemas. Source of truth in Zod; generates JSON Schema, Pydantic, and Go.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runfile-ai/schemas.git"
+  },
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +38,7 @@
     "clean": "rm -rf dist generated/json-schema/*.json",
     "changeset": "changeset",
     "changeset:version": "changeset version && pnpm run generate",
-    "changeset:publish": "pnpm run build && ([ -n \"$(npm view @runfile-ai/schemas@$npm_package_version version 2>/dev/null)\" ] || npm publish --access public) && changeset tag"
+    "changeset:publish": "pnpm run build && npm --version && ([ -n \"$(npm view @runfile-ai/schemas@$npm_package_version version 2>/dev/null)\" ] || npm publish --access public --loglevel verbose) && changeset tag"
   },
   "dependencies": {
     "canonicalize": "^2.0.0",
