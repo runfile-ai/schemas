@@ -202,7 +202,8 @@
           "enum": [
             "production",
             "staging",
-            "development"
+            "development",
+            "sandbox"
           ]
         },
         "labels": {

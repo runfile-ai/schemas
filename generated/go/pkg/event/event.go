@@ -407,6 +407,7 @@ type Ent string
 const (
 	Development Ent = "development"
 	Production  Ent = "production"
+	Sandbox     Ent = "sandbox"
 	Staging     Ent = "staging"
 )
 

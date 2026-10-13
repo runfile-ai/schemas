@@ -428,7 +428,12 @@ export const SdkMetadataSchema = z
   .strict();
 export type SdkMetadata = z.infer<typeof SdkMetadataSchema>;
 
-export const EnvironmentEnum = z.enum(['production', 'staging', 'development']);
+// The environment a run executes in. Every workspace has a `sandbox` and a
+// `production` environment, and an API key belongs to exactly one of them, so
+// the key — not the agent's code — decides the environment; ingest rejects data
+// whose declared environment disagrees with its key's. `staging` and
+// `development` predate workspace environments and are kept for compatibility.
+export const EnvironmentEnum = z.enum(['production', 'staging', 'development', 'sandbox']);
 
 export const LabelsSchema = z
   .record(z.string().regex(/^[a-z][a-z0-9_]{0,31}$/), z.string().max(128))

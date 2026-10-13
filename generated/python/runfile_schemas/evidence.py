@@ -323,6 +323,7 @@ class Environment(Enum):
     production = 'production'
     staging = 'staging'
     development = 'development'
+    sandbox = 'sandbox'
 
 
 class KmsSignature(BaseModel):
