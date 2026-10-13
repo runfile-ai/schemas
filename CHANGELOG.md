@@ -1,5 +1,11 @@
 # @runfile-ai/schemas
 
+## 0.10.0
+
+### Minor Changes
+
+- [#18](https://github.com/runfile-ai/schemas/pull/18) [`7ea5dc0`](https://github.com/runfile-ai/schemas/commit/7ea5dc01ff6d80fdddaf0b19d5d76f0f4294898c) Thanks [@ada-raj](https://github.com/ada-raj)! - `environment` is now an environment _name_ (a lowercase slug, max 32 chars) instead of the fixed `production | staging | development` list, and `EnvironmentEnum` is replaced by `EnvironmentNameSchema`. Environments belong to the workspace — every workspace starts with `sandbox` and `production` — so adding one no longer needs a schema release. Each API key belongs to exactly one environment and ingest rejects data whose declared environment differs from its key's, so the value stays in the hashed record as an attested fact. All previous values remain valid, and the event hash projection is unaffected.
+
 ## 0.9.0
 
 ### Minor Changes
