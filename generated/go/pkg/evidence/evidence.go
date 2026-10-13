@@ -30,7 +30,7 @@ type Event struct {
 	CapturedAt                                                                                  time.Time            `json:"captured_at"`
 	Decision                                                                                    *DecisionClass       `json:"decision,omitempty"`
 	DelegationDetails                                                                           *DelegationDetails   `json:"delegation_details,omitempty"`
-	Environment                                                                                 *Environment         `json:"environment,omitempty"`
+	Environment                                                                                 *string              `json:"environment,omitempty"`
 	EventHash                                                                                   string               `json:"event_hash"`
 	EventID                                                                                     string               `json:"event_id"`
 	HandoffDetails                                                                              *HandoffDetails      `json:"handoff_details,omitempty"`
@@ -357,14 +357,6 @@ const (
 	OpenaiAgentsAsTool     DelegationDetailsFrameworkSignal = "openai_agents_as_tool"
 	PurpleManual           DelegationDetailsFrameworkSignal = "manual"
 	PurpleOther            DelegationDetailsFrameworkSignal = "other"
-)
-
-type Environment string
-
-const (
-	Development Environment = "development"
-	Production  Environment = "production"
-	Staging     Environment = "staging"
 )
 
 type HandoffDetailsFrameworkSignal string

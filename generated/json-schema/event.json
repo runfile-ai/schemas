@@ -96,11 +96,7 @@
         },
         "environment": {
           "type": "string",
-          "enum": [
-            "production",
-            "staging",
-            "development"
-          ]
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$"
         },
         "labels": {
           "type": "object",

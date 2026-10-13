@@ -319,12 +319,6 @@ class AnomalyFlag(BaseModel):
     detail: str | None = Field(None, max_length=1024)
 
 
-class Environment(Enum):
-    production = 'production'
-    staging = 'staging'
-    development = 'development'
-
-
 class KmsSignature(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -562,7 +556,7 @@ class Event(BaseModel):
     redaction_policy_version: SchemaVersion
     regulatory_scope_version: SchemaVersion | None = None
     anomaly_flags: list[AnomalyFlag] | None = Field(None, max_length=32)
-    environment: Environment | None = None
+    environment: str | None = Field(None, pattern='^[a-z][a-z0-9_-]{0,31}$')
     labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
     prev_event_hash: ToolVersionHash
     event_hash: ToolVersionHash

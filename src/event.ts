@@ -428,7 +428,15 @@ export const SdkMetadataSchema = z
   .strict();
 export type SdkMetadata = z.infer<typeof SdkMetadataSchema>;
 
-export const EnvironmentEnum = z.enum(['production', 'staging', 'development']);
+// The name of the environment a run executes in. Environments belong to the
+// workspace (every workspace starts with `sandbox` and `production`), so this is
+// a name rather than a fixed list: adding an environment needs no schema
+// release. An API key belongs to exactly one environment and ingest rejects
+// data whose declared environment differs from its key's, so the value stays
+// in the hashed record as an attested fact, checked server-side.
+export const EnvironmentNameSchema = z
+  .string()
+  .regex(/^[a-z][a-z0-9_-]{0,31}$/, 'lowercase name, max 32 chars');
 
 export const LabelsSchema = z
   .record(z.string().regex(/^[a-z][a-z0-9_]{0,31}$/), z.string().max(128))
@@ -508,7 +516,7 @@ export const RunfileRunSchema = z
     continued_from: RunReferenceSchema.optional(),
     active_duration_seconds: z.number().int().nonnegative().optional(),
     suspension_intervals: z.array(SuspensionIntervalSchema).max(100).optional(),
-    environment: EnvironmentEnum.optional(),
+    environment: EnvironmentNameSchema.optional(),
     labels: LabelsSchema.optional(),
     redaction_policy_version: semver,
     regulatory_scope_version: semver.optional(),
@@ -577,7 +585,7 @@ export const RunfileEventSchema = z
     redaction_policy_version: semver,
     regulatory_scope_version: semver.optional(),
     anomaly_flags: z.array(AnomalyFlagSchema).max(32).optional(),
-    environment: EnvironmentEnum.optional(),
+    environment: EnvironmentNameSchema.optional(),
     labels: LabelsSchema.optional(),
     prev_event_hash: sha256Hex,
     event_hash: sha256Hex,
