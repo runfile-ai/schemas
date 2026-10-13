@@ -35,13 +35,13 @@ jobs:
       name: release
       url: https://pypi.org/project/runfile-ai-schemas/
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history so changesets can compute changelog entries against
           # the last tag.
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -49,9 +49,9 @@ jobs:
       # workflow + the `release` environment, so there is no NPM_TOKEN to
       # store or expire. Don't pass `registry-url:` here — setup-node would
       # write an .npmrc expecting a token.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       # Trusted publishing needs npm >= 11.5.1; Node 20 ships npm 10. The
@@ -60,11 +60,11 @@ jobs:
       # `pnpm publish` in this pnpm repo.
       - run: npm install -g npm@11
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.22'
 
