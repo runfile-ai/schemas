@@ -428,12 +428,15 @@ export const SdkMetadataSchema = z
   .strict();
 export type SdkMetadata = z.infer<typeof SdkMetadataSchema>;
 
-// The name of the environment a run executes in. Environments belong to the
-// workspace (every workspace starts with `sandbox` and `production`), so this is
-// a name rather than a fixed list: adding an environment needs no schema
-// release. An API key belongs to exactly one environment and ingest rejects
-// data whose declared environment differs from its key's, so the value stays
-// in the hashed record as an attested fact, checked server-side.
+// The environment a run executes in, as sealed by the SDK. Environments belong
+// to the workspace (every workspace starts with `sandbox` and `production`), so
+// this is a name rather than a fixed list: adding one needs no schema release.
+// An API key belongs to exactly one environment, and its marker tells the SDK
+// only whether that is production, so SDKs seal the class — `production`
+// (rf_live_ keys) or `non-production` (rf_test_ keys) — unless the developer
+// sets an exact name. Ingest rejects a value that contradicts the key's
+// environment, and the server labels the run with the key's exact environment
+// name. Sealing the class makes production-vs-test tamper-evident.
 export const EnvironmentNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9_-]{0,31}$/, 'lowercase name, max 32 chars');
