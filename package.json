@@ -34,7 +34,7 @@
     "clean": "rm -rf dist generated/json-schema/*.json",
     "changeset": "changeset",
     "changeset:version": "changeset version && pnpm run generate",
-    "changeset:publish": "pnpm run build && changeset publish"
+    "changeset:publish": "pnpm run build && ([ -n \"$(npm view @runfile-ai/schemas@$npm_package_version version 2>/dev/null)\" ] || npm publish --access public) && changeset tag"
   },
   "dependencies": {
     "canonicalize": "^2.0.0",

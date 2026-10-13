@@ -13,7 +13,7 @@ on:
 
 # `contents: write` lets the action push the version-bump commit and tags.
 # `pull-requests: write` lets it open/update the "Version Packages" PR.
-# `id-token: write` is needed if we ever enable npm provenance.
+# `id-token: write` lets npm (trusted publishing) and PyPI authenticate via OIDC.
 permissions:
   contents: write
   pull-requests: write
@@ -45,18 +45,20 @@ jobs:
         with:
           version: 9
 
-      # NOTE: deliberately do NOT pass `registry-url:` here. Setting it makes
-      # setup-node write its own .npmrc to a temp path and pin
-      # NPM_CONFIG_USERCONFIG at it, where it expects `${NODE_AUTH_TOKEN}` to
-      # provide the credential. The changesets/action below writes its own
-      # ~/.npmrc using `NPM_TOKEN`, but npm ignores ~/.npmrc when
-      # NPM_CONFIG_USERCONFIG is set — so the publish authenticates as nobody
-      # and gets 401/404 from npm. Letting changesets/action own .npmrc fixes
-      # the conflict.
+      # npm publishes via trusted publishing (OIDC): npmjs.com trusts this
+      # workflow + the `release` environment, so there is no NPM_TOKEN to
+      # store or expire. Don't pass `registry-url:` here — setup-node would
+      # write an .npmrc expecting a token.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
+      # Trusted publishing needs npm >= 11.5.1; Node 20 ships npm 10. The
+      # publish itself runs `npm publish` (see `changeset:publish` in
+      # package.json) rather than `changeset publish`, which would use
+      # `pnpm publish` in this pnpm repo.
+      - run: npm install -g npm@11
 
       - uses: actions/setup-python@v5
         with:
@@ -88,9 +90,10 @@ jobs:
           publish: pnpm changeset:publish
           commit: 'chore(release): version packages'
           title: 'chore(release): version packages'
+        # No NPM_TOKEN: with none set and `id-token: write`, changesets/action
+        # leaves npm auth to trusted publishing.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ----- PyPI publish ------------------------------------------------
       # Only runs when changesets/action above actually published (i.e. the
