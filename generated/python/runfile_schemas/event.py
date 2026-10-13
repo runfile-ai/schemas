@@ -24,13 +24,6 @@ class Outcome(Enum):
     abandoned = 'abandoned'
 
 
-class Environment(Enum):
-    production = 'production'
-    staging = 'staging'
-    development = 'development'
-    sandbox = 'sandbox'
-
-
 class WallClockSource(Enum):
     aws_time_sync = 'aws_time_sync'
     ntp = 'ntp'
@@ -333,6 +326,10 @@ class AgentIdentity(RootModel[str]):
     root: str = Field(..., pattern='^did:[a-z][a-z0-9]*:[A-Za-z0-9._:-]+$')
 
 
+class Environment(RootModel[str]):
+    root: str = Field(..., pattern='^[a-z][a-z0-9_-]{0,31}$')
+
+
 class Labels(RootModel[dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]]):
     root: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]
 
@@ -540,7 +537,7 @@ class RunfileRun(BaseModel):
     continued_from: RunReference | None = None
     active_duration_seconds: int | None = Field(None, ge=0)
     suspension_intervals: list[SuspensionInterval] | None = Field(None, max_length=100)
-    environment: Environment | None = None
+    environment: str | None = Field(None, pattern='^[a-z][a-z0-9_-]{0,31}$')
     labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
     redaction_policy_version: SchemaVersion
     regulatory_scope_version: SchemaVersion | None = None

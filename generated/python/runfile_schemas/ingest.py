@@ -42,13 +42,6 @@ class DelegatedFrom(BaseModel):
     event_id: str | None = Field(None, pattern='^[0-9A-HJKMNP-TV-Z]{26}$')
 
 
-class Environment(Enum):
-    production = 'production'
-    staging = 'staging'
-    development = 'development'
-    sandbox = 'sandbox'
-
-
 class Name(Enum):
     runfile_py = 'runfile-py'
     field_runfile_sdk = '@runfile/sdk'
@@ -478,6 +471,10 @@ class RunId(RootModel[str]):
     root: str = Field(..., pattern='^run_[0-9A-HJKMNP-TV-Z]{26}$')
 
 
+class Environment(RootModel[str]):
+    root: str = Field(..., pattern='^[a-z][a-z0-9_-]{0,31}$')
+
+
 class Labels(RootModel[dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]]):
     root: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str]
 
@@ -553,7 +550,7 @@ class RunSubmission(BaseModel):
     scheduled_from: DelegatedFrom | None = None
     invoked_by: DelegatedFrom | None = None
     continued_from: DelegatedFrom | None = None
-    environment: Environment | None = None
+    environment: str | None = Field(None, pattern='^[a-z][a-z0-9_-]{0,31}$')
     labels: dict[constr(pattern=r'^[a-z][a-z0-9_]{0,31}$'), str] | None = None
     redaction_policy_version: SchemaVersion
     regulatory_scope_version: SchemaVersion | None = None

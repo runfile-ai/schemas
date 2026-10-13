@@ -81,7 +81,7 @@ type EventSubmission struct {
 	CapturedAt             time.Time            `json:"captured_at"`
 	Decision               *DecisionClass       `json:"decision,omitempty"`
 	DelegationDetails      *DelegationDetails   `json:"delegation_details,omitempty"`
-	Environment            *Environment         `json:"environment,omitempty"`
+	Environment            *string              `json:"environment,omitempty"`
 	EventID                string               `json:"event_id"`
 	HandoffDetails         *HandoffDetails      `json:"handoff_details,omitempty"`
 	Labels                 map[string]string    `json:"labels,omitempty"`
@@ -257,7 +257,7 @@ type RunSubmission struct {
 	ContinuedFrom          *ContinuedFrom              `json:"continued_from,omitempty"`
 	ConversationID         *string                     `json:"conversation_id,omitempty"`
 	DelegatedFrom          *ContinuedFrom              `json:"delegated_from,omitempty"`
-	Environment            *Environment                `json:"environment,omitempty"`
+	Environment            *string                     `json:"environment,omitempty"`
 	HandedOffFrom          *ContinuedFrom              `json:"handed_off_from,omitempty"`
 	InvokedBy              *ContinuedFrom              `json:"invoked_by,omitempty"`
 	Labels                 map[string]string           `json:"labels,omitempty"`
@@ -468,15 +468,6 @@ const (
 	OpenaiAgentsAsTool     DelegationDetailsFrameworkSignal = "openai_agents_as_tool"
 	PurpleManual           DelegationDetailsFrameworkSignal = "manual"
 	PurpleOther            DelegationDetailsFrameworkSignal = "other"
-)
-
-type Environment string
-
-const (
-	Development Environment = "development"
-	Production  Environment = "production"
-	Sandbox     Environment = "sandbox"
-	Staging     Environment = "staging"
 )
 
 type HandoffDetailsFrameworkSignal string

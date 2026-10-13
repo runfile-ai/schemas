@@ -67,7 +67,7 @@ jobs:
           go-version: '1.22'
 
       - run: pnpm install --frozen-lockfile
-      - run: pip install 'datamodel-code-generator>=0.57,<1.0' 'pydantic>=2.5'
+      - run: pip install 'datamodel-code-generator==0.57.0' 'pydantic>=2.5'
 
       # Generate + verify before any publish can happen. The version PR also
       # passes through CI on the next push, but running it here is a final

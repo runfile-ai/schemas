@@ -144,7 +144,7 @@ type RunfileEvent struct {
 	CapturedAt                                                                                  time.Time            `json:"captured_at"`
 	Decision                                                                                    *DecisionClass       `json:"decision,omitempty"`
 	DelegationDetails                                                                           *DelegationDetails   `json:"delegation_details,omitempty"`
-	Environment                                                                                 *Ent                 `json:"environment,omitempty"`
+	Environment                                                                                 *string              `json:"environment,omitempty"`
 	EventHash                                                                                   string               `json:"event_hash"`
 	EventID                                                                                     string               `json:"event_id"`
 	HandoffDetails                                                                              *HandoffDetails      `json:"handoff_details,omitempty"`
@@ -217,7 +217,7 @@ type RunfileRun struct {
 	ConversationID         *string              `json:"conversation_id,omitempty"`
 	DelegatedFrom          *RunReference        `json:"delegated_from,omitempty"`
 	EndedAt                *time.Time           `json:"ended_at"`
-	Environment            *Ent                 `json:"environment,omitempty"`
+	Environment            *string              `json:"environment,omitempty"`
 	HandedOffFrom          *RunReference        `json:"handed_off_from,omitempty"`
 	InvokedBy              *RunReference        `json:"invoked_by,omitempty"`
 	Labels                 map[string]string    `json:"labels,omitempty"`
@@ -400,15 +400,6 @@ const (
 	SubagentCompleted      TriggeredBy = "subagent_completed"
 	TriggeredByOther       TriggeredBy = "other"
 	WebhookReceived        TriggeredBy = "webhook_received"
-)
-
-type Ent string
-
-const (
-	Development Ent = "development"
-	Production  Ent = "production"
-	Sandbox     Ent = "sandbox"
-	Staging     Ent = "staging"
 )
 
 type SDKMetadataFramework string
